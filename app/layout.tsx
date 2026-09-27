@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { Providers } from '@/components/flight/providers'
 import { getCompanySettings } from '@/lib/get-company-settings'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,7 +50,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <Providers>{children}</Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

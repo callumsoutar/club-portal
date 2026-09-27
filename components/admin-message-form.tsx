@@ -7,7 +7,7 @@ import { ChevronLeft, ImagePlus } from 'lucide-react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { removeSafetyMessageImage, saveSafetyMessage, uploadSafetyMessageImage } from '@/app/admin/actions'
+import { removeSafetyMessageImage, saveSafetyMessage, uploadSafetyMessageImage } from '@/app/(programme)/admin/actions'
 import { MarkdownEditor } from '@/components/markdown-editor'
 import { safetyMessageCategories } from '@/lib/safety-messages'
 import {

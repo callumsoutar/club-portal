@@ -3,7 +3,9 @@
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { safeNextPath } from '@/lib/auth'
+import { landingPath, safeNextPath } from '@/lib/auth'
+import { isMemberLoginEnabled } from '@/lib/flight/queries'
+import type { AppRole } from '@/lib/flight/types'
 import { createClient } from '@/lib/supabase/server'
 
 const loginSchema = z.object({
@@ -28,17 +30,28 @@ export async function signIn(input: { email: string; password: string; nextPath?
     return { error: 'Email or password is incorrect.' }
   }
 
-  const { data: role, error: roleError } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', data.user.id)
-    .eq('role', 'admin')
-    .maybeSingle()
+  const [{ data: roleRow }, { data: profile }, memberLoginEnabled] = await Promise.all([
+    supabase.from('user_roles').select('role').eq('user_id', data.user.id).eq('role', 'admin').maybeSingle(),
+    supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle(),
+    isMemberLoginEnabled(),
+  ])
 
-  if (roleError || !role) {
+  const flightRole = (profile?.role ?? null) as AppRole | null
+  if (!memberLoginEnabled && flightRole === 'member' && !roleRow) {
     await supabase.auth.signOut()
-    return { error: 'This account is not an admin.' }
+    return { error: 'Member login is turned off. You can still submit a guest authorisation.' }
   }
 
-  redirect(safeNextPath(parsed.data.nextPath))
+  const destination = landingPath({
+    nextPath: safeNextPath(parsed.data.nextPath),
+    safetyAdmin: Boolean(roleRow),
+    flightRole,
+  })
+
+  if (!destination) {
+    await supabase.auth.signOut()
+    return { error: 'This account does not have access yet.' }
+  }
+
+  redirect(destination)
 }
