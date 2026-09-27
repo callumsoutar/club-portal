@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Menu, Play, Search, Tv } from 'lucide-react'
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, Play, Search } from 'lucide-react'
+import { signOut } from '@/lib/flight/actions/profile'
 import { Logo } from '@/components/logo'
 import { MessageBody } from '@/components/message-body'
 import { SlideshowStart } from '@/components/slideshow-start'
@@ -15,23 +16,104 @@ type Message = SafetyMessage
 const ARCHIVE_PAGE_SIZE = 8
 const LEAD_COUNT = 5
 
-function Header({ isAdmin, company, onMenu }: { isAdmin: boolean; company: CompanySettings; onMenu: () => void }) {
+function Header({ isAdmin, canFly, company }: { isAdmin: boolean; canFly: boolean; company: CompanySettings }) {
   return (
     <header className="site-header">
       <div className="header-inner">
         <a href="#top" aria-label={`${company.companyName} home`}><Logo companyName={company.companyName} logoUrl={company.logoUrl} /></a>
-        <nav className="desktop-nav" aria-label="Main navigation">
-          <a className="active" href="#latest">Latest</a>
-          <a href="#archive">Archive</a>
-          <a href="#categories">Categories</a>
-        </nav>
-        <div className="header-actions">
-          {isAdmin ? <Link className="tv-link" href="/admin">Edit messages</Link> : <Link className="sign-in-link" href="/login">Sign in</Link>}
-          {isAdmin ? <Link className="tv-link" href="/tv"><Tv size={16} /> TV slideshow</Link> : null}
-          <button className="icon-button mobile-menu" onClick={onMenu} aria-label="Open navigation"><Menu size={20} /></button>
-        </div>
+        <SiteMenu isAdmin={isAdmin} canFly={canFly} />
       </div>
     </header>
+  )
+}
+
+function SiteMenu({ isAdmin, canFly }: { isAdmin: boolean; canFly: boolean }) {
+  const [open, setOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const close = () => setOpen(false)
+
+  useEffect(() => {
+    if (!open) return
+    const onPointer = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) close()
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  return (
+    <div className="site-menu" ref={menuRef}>
+      <button
+        className="site-menu-trigger"
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((value) => !value)}
+      >
+        Menu <ChevronDown size={14} />
+      </button>
+      {open ? (
+        <div className="site-menu-panel" role="menu">
+          <div className="site-menu-group">
+            <p className="site-menu-label">Safety messages</p>
+            <a href="#latest" role="menuitem" onClick={close}>
+              <strong>Latest</strong>
+              <span>This week&apos;s briefing</span>
+            </a>
+            <a href="#archive" role="menuitem" onClick={close}>
+              <strong>Archive</strong>
+              <span>Every published message</span>
+            </a>
+            <a href="#categories" role="menuitem" onClick={close}>
+              <strong>Categories</strong>
+              <span>Browse by topic</span>
+            </a>
+          </div>
+          <div className="site-menu-group">
+            <p className="site-menu-label">Flying</p>
+            <Link href="/authorise" role="menuitem" onClick={close}>
+              <strong>Authorise a flight</strong>
+              <span>Submit a pre-flight authorisation</span>
+            </Link>
+            {canFly ? (
+              <Link href="/fly" role="menuitem" onClick={close}>
+                <strong>My flights</strong>
+                <span>Your authorisations and club tools</span>
+              </Link>
+            ) : null}
+          </div>
+          {isAdmin ? (
+            <div className="site-menu-group">
+              <p className="site-menu-label">Club</p>
+              <Link href="/admin" role="menuitem" onClick={close}>
+                <strong>Edit messages</strong>
+                <span>Update what members read here</span>
+              </Link>
+              <Link href="/tv" role="menuitem" onClick={close}>
+                <strong>TV slideshow</strong>
+                <span>Open the briefing-room display</span>
+              </Link>
+            </div>
+          ) : null}
+          {isAdmin || canFly ? (
+            <button className="site-menu-signout" type="button" role="menuitem" onClick={() => void signOut()}>
+              Sign out
+            </button>
+          ) : (
+            <Link className="site-menu-account" href="/login" role="menuitem" onClick={close}>
+              Sign in
+            </Link>
+          )}
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -222,24 +304,11 @@ function Slideshow({ messages, company, onLeave }: { messages: Message[]; compan
   )
 }
 
-function MobileNav({ isAdmin, onNavigate }: { isAdmin: boolean; onNavigate: () => void }) {
-  return (
-    <div className="mobile-nav">
-      <a href="#latest" onClick={onNavigate}>Latest</a>
-      <a href="#archive" onClick={onNavigate}>Archive</a>
-      <a href="#categories" onClick={onNavigate}>Categories</a>
-      {isAdmin ? <Link href="/admin" onClick={onNavigate}>Edit messages</Link> : <Link href="/login" onClick={onNavigate}>Sign in</Link>}
-      {isAdmin ? <Link href="/tv" onClick={onNavigate}>TV slideshow</Link> : null}
-    </div>
-  )
-}
-
-export function HomePage({ messages, isAdmin, company }: { messages: Message[]; isAdmin: boolean; company: CompanySettings }) {
+export function HomePage({ messages, isAdmin, canFly, company }: { messages: Message[]; isAdmin: boolean; canFly: boolean; company: CompanySettings }) {
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All messages')
   const [openMessage, setOpenMessage] = useState<Message | null>(null)
   const [slideshow, setSlideshow] = useState(false)
-  const [menu, setMenu] = useState(false)
   const [visibleCount, setVisibleCount] = useState(ARCHIVE_PAGE_SIZE)
   const [filterSnapshot, setFilterSnapshot] = useState('All messages\0')
   const filterKey = `${category}\0${query}`
@@ -259,12 +328,12 @@ export function HomePage({ messages, isAdmin, company }: { messages: Message[]; 
   const archive = filtered.slice(0, visibleCount)
 
   if (isAdmin && slideshow) return <Slideshow messages={messages} company={company} onLeave={() => setSlideshow(false)} />
-  if (openMessage) return <><Header isAdmin={isAdmin} company={company} onMenu={() => setMenu(!menu)} />{menu && <MobileNav isAdmin={isAdmin} onNavigate={() => setMenu(false)} />}<Article message={openMessage} messages={messages} isAdmin={isAdmin} company={company} onBack={() => setOpenMessage(null)} onOpen={setOpenMessage} /></>
+  if (openMessage) return <><Header isAdmin={isAdmin} canFly={canFly} company={company} /><Article message={openMessage} messages={messages} isAdmin={isAdmin} company={company} onBack={() => setOpenMessage(null)} onOpen={setOpenMessage} /></>
 
-  return <div id="top"><Header isAdmin={isAdmin} company={company} onMenu={() => setMenu(!menu)} />{menu && <MobileNav isAdmin={isAdmin} onNavigate={() => setMenu(false)} />}<main>
+  return <div id="top"><Header isAdmin={isAdmin} canFly={canFly} company={company} /><main>
     <WeeklyFeature messages={leadMessages} onOpen={setOpenMessage} />
     <section className="latest-section" id="latest"><div className="section-heading"><div><span className="eyebrow">Earlier briefings</span><h2>Recent safety messages</h2></div><button onClick={() => document.getElementById('archive')?.scrollIntoView({ behavior: 'smooth' })}>View all messages <ArrowRight size={15} /></button></div><CategoryPills categories={categories} selected={category} onSelect={setCategory} /><div className="latest-list">{recent.length ? recent.map((message) => <MessageRow key={message.id} message={message} onOpen={setOpenMessage} />) : <div className="empty-state">No messages found. Try another search or category.</div>}</div></section>
     <section className="archive-preview" id="archive"><div className="archive-intro"><div><span className="eyebrow">The archive</span><h2>Everything in<br /><em>one place.</em></h2></div><p>Browse every message published by the {company.companyName} safety team. Use search or filters to find exactly what you need.</p></div><div className="archive-toolbar"><SearchBox value={query} onChange={setQuery} /><button className="sort-button" type="button">Newest first <ChevronDown size={15} /></button></div><div className="archive-list">{archive.length ? archive.map((message) => <MessageRow key={message.id} message={message} onOpen={setOpenMessage} />) : <div className="empty-state">No messages found. Try another search or category.</div>}</div>{visibleCount < filtered.length && <button className="load-more" type="button" onClick={() => setVisibleCount((count) => count + ARCHIVE_PAGE_SIZE)}>Load more messages <ChevronDown size={16} /></button>}</section>
     {isAdmin ? <section className="tv-banner"><div><span className="eyebrow orange-eyebrow">For the clubhouse</span><h2>Put safety in<br /><em>the picture.</em></h2><p>Leave the briefing room display open on a clubhouse TV. Safety messages rotate on their own, so members can read them while they wait.</p></div><div className="tv-banner-actions"><button onClick={() => setSlideshow(true)} className="tv-button"><Play size={15} fill="currentColor" /> Preview TV slideshow <ArrowRight size={16} /></button><Link className="tv-open" href="/tv">Open on the briefing room TV <ExternalLink size={14} /></Link></div></section> : null}
-  </main><footer><Logo companyName={company.companyName} logoUrl={company.logoUrl} /><span>Safety is a shared responsibility.</span>{isAdmin ? <Link href="/tv">TV slideshow <ExternalLink size={13} /></Link> : <Link href="/login">Sign in</Link>}</footer></div>
+  </main><footer><Logo companyName={company.companyName} logoUrl={company.logoUrl} /><span>Safety is a shared responsibility.</span><Link href="/authorise">Authorise a flight</Link>{canFly ? <Link href="/fly">My flights</Link> : isAdmin ? <Link href="/admin">Edit messages</Link> : <Link href="/login">Sign in</Link>}</footer></div>
 }

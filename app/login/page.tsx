@@ -5,7 +5,8 @@ import { redirect } from 'next/navigation'
 
 import { Logo } from '@/components/logo'
 import { LoginForm } from '@/components/login-form'
-import { getAdminUser, safeNextPath } from '@/lib/auth'
+import { getAdminUser, landingPath, safeNextPath } from '@/lib/auth'
+import { getSessionUser } from '@/lib/flight/auth'
 import { getCompanySettings } from '@/lib/get-company-settings'
 
 export const metadata: Metadata = {
@@ -17,10 +18,21 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ next?: string }>
 }) {
-  const [admin, company] = await Promise.all([getAdminUser(), getCompanySettings()])
+  const [admin, session, company] = await Promise.all([
+    getAdminUser(),
+    getSessionUser(),
+    getCompanySettings(),
+  ])
   const { next } = await searchParams
   const nextPath = safeNextPath(next)
-  if (admin) redirect(nextPath)
+  if (admin || session) {
+    const destination = landingPath({
+      nextPath,
+      safetyAdmin: admin !== null,
+      flightRole: session?.profile.role ?? null,
+    })
+    if (destination) redirect(destination)
+  }
 
   return (
     <main className="login-page">
@@ -31,12 +43,17 @@ export default async function LoginPage({
         <Link href="/" aria-label={`${company.companyName} home`}>
           <Logo companyName={company.companyName} logoUrl={company.logoUrl} />
         </Link>
-        <p className="eyebrow">Admin</p>
+        <p className="eyebrow">Safety Hub</p>
         <h1>Sign in</h1>
         <p className="login-lede">
-          Edit and publish safety messages. Club members can read everything on the site without an account.
+          One account for safety messages and flight authorisations. The public site stays open without signing in.
         </p>
-        <LoginForm nextPath={nextPath} />
+        <LoginForm nextPath={nextPath ?? ''} />
+        <p className="login-lede">
+          <Link href="/signup">Create an account</Link>
+          {' · '}
+          <Link href="/authorise">Authorise a flight without an account</Link>
+        </p>
       </section>
       <aside className="login-aside" aria-hidden="true">
         <p>Safety is a shared responsibility.</p>
