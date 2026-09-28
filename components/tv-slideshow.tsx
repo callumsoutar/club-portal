@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { flushSync } from 'react-dom'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, Pause, Play, Plus, X } from 'lucide-react'
 import { Logo } from '@/components/logo'
@@ -104,10 +105,9 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
   const progressRef = useRef(0)
   const barRef = useRef<HTMLSpanElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
+  const scrollLockRef = useRef(false)
   const bodyRef = useRef<HTMLDivElement>(null)
   const articleRef = useRef<HTMLDivElement>(null)
-  const countdownRef = useRef<HTMLSpanElement>(null)
-  const secondsRef = useRef(SUMMARY_SLIDE_MS / 1000)
   const distanceRef = useRef(0)
   const crawlingRef = useRef(false)
   const seenSlideRef = useRef<string | null>(null)
@@ -116,9 +116,10 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
   const canAutoAdvance = total > 1 && !paused && !reducedMotion
   const slideToken = `${index}:${content}:${durationMs}`
   const [countdownSlide, setCountdownSlide] = useState<string | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState(SUMMARY_SLIDE_MS / 1000)
   if (countdownSlide !== slideToken) {
-    secondsRef.current = Math.round(durationMs / 1000)
     setCountdownSlide(slideToken)
+    setSecondsLeft(Math.round(durationMs / 1000))
   }
 
   const go = useCallback((delta: number) => {
@@ -140,21 +141,23 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
     const slideChanged = seenSlideRef.current !== slideToken
     seenSlideRef.current = slideToken
     const crawling = content === 'full' && canAutoAdvance
+    // overflow:hidden is still a scroll container. Writing scrollTop, or letting
+    // a long message become one, makes Safari and Chrome leave fullscreen.
+    const locked = scrollLockRef.current || Boolean(document.fullscreenElement)
 
     if (slideChanged) {
       paintProgress(0)
       if (article) article.style.transform = ''
-      if (viewport && viewport.scrollTop !== 0) viewport.scrollTop = 0
-    } else if (!crawling && viewport && article && !document.fullscreenElement) {
+      if (!locked && viewport && viewport.scrollTop !== 0) viewport.scrollTop = 0
+    } else if (!crawling && viewport && article && !locked) {
       // Windowed pause can hand the offset to native scroll so the rest of the message stays readable.
-      // Fullscreen keeps the transform: a scrollTop write is what drops the browser out of fullscreen.
       const y = readTranslateY(article)
       if (y < -0.5) {
         article.style.transform = ''
         viewport.scrollTop = -y
       }
     } else if (crawling && viewport && article) {
-      if (viewport.scrollTop !== 0) viewport.scrollTop = 0
+      if (!locked && viewport.scrollTop !== 0) viewport.scrollTop = 0
       const distance = Math.max(0, article.offsetHeight - viewport.clientHeight)
       distanceRef.current = distance
       const y = -distance * crawlRatio(progressRef.current, durationMs)
@@ -201,10 +204,7 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
         article.style.transform = `translate3d(0, ${y}px, 0)`
       }
       const nextSeconds = Math.max(1, Math.ceil((1 - ratio) * (durationMs / 1000)))
-      if (secondsRef.current !== nextSeconds) {
-        secondsRef.current = nextSeconds
-        if (countdownRef.current) countdownRef.current.textContent = `Next in ${pad(nextSeconds)} seconds`
-      }
+      setSecondsLeft((current) => (current === nextSeconds ? current : nextSeconds))
       frame = requestAnimationFrame(tick)
     }
 
@@ -265,27 +265,30 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
 
   useEffect(() => {
     const onFullscreen = () => {
-      const active = document.fullscreenElement
-      setFullscreen(Boolean(active))
-      if (active) {
-        document.documentElement.scrollTop = 0
-        document.body.scrollTop = 0
-      }
+      const active = Boolean(document.fullscreenElement)
+      scrollLockRef.current = active
+      setFullscreen(active)
+      document.documentElement.classList.toggle('slideshow-scroll-lock', active)
     }
     document.addEventListener('fullscreenchange', onFullscreen)
-    return () => document.removeEventListener('fullscreenchange', onFullscreen)
+    return () => {
+      document.removeEventListener('fullscreenchange', onFullscreen)
+      scrollLockRef.current = false
+      document.documentElement.classList.remove('slideshow-scroll-lock')
+    }
   }, [])
 
   useEffect(() => {
     if (!fullscreen) return
-    const keepDocumentStill = (event: WheelEvent) => {
-      const viewport = bodyRef.current
-      const reading = viewport && !viewport.classList.contains('is-crawling') && event.target instanceof Node && viewport.contains(event.target)
-      if (reading) return
+    const keepDocumentStill = (event: Event) => {
       event.preventDefault()
     }
     window.addEventListener('wheel', keepDocumentStill, { passive: false })
-    return () => window.removeEventListener('wheel', keepDocumentStill)
+    window.addEventListener('touchmove', keepDocumentStill, { passive: false })
+    return () => {
+      window.removeEventListener('wheel', keepDocumentStill)
+      window.removeEventListener('touchmove', keepDocumentStill)
+    }
   }, [fullscreen])
 
   const changeTextSize = useCallback((delta: number) => {
@@ -297,11 +300,26 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
     const target = rootRef.current
     if (!target) return
     try {
-      if (document.fullscreenElement) await document.exitFullscreen()
-      else await target.requestFullscreen()
+      if (document.fullscreenElement) {
+        scrollLockRef.current = false
+        await document.exitFullscreen()
+      } else {
+        const viewport = bodyRef.current
+        const article = articleRef.current
+        if (viewport && article && viewport.scrollTop > 0) {
+          article.style.transform = `translate3d(0, ${-viewport.scrollTop}px, 0)`
+          viewport.scrollTop = 0
+        }
+        scrollLockRef.current = true
+        document.documentElement.classList.add('slideshow-scroll-lock')
+        flushSync(() => setFullscreen(true))
+        await target.requestFullscreen()
+      }
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur()
     } catch {
-      // Fullscreen can be denied outside a user gesture or in an embedded frame.
+      scrollLockRef.current = false
+      document.documentElement.classList.remove('slideshow-scroll-lock')
+      setFullscreen(false)
     }
   }, [])
 
@@ -318,7 +336,7 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
       } else if (event.key === ' ') {
         event.preventDefault()
         if (!reducedMotion && total > 1) setPaused((current) => !current)
-      } else if ((event.key === 'ArrowUp' || event.key === 'ArrowDown') && document.fullscreenElement) {
+      } else if (document.fullscreenElement && ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) {
         event.preventDefault()
       } else if (event.key === 'Escape' && onExit && !document.fullscreenElement) {
         onExit()
@@ -369,7 +387,7 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
   const countdown = !reducedMotion && !paused && total > 1
 
   return (
-    <div ref={rootRef} className={`slideshow${idle ? ' is-idle' : ''}`} style={{ '--slide-scale': textScales[textStep] } as CSSProperties}>
+    <div ref={rootRef} className={`slideshow${idle ? ' is-idle' : ''}${fullscreen ? ' is-fullscreen' : ''}`} style={{ '--slide-scale': textScales[textStep] } as CSSProperties}>
       <div className="slide-top">
         <Logo companyName={companyName} logoUrl={logoUrl} />
         <div className="slide-chrome">
@@ -422,7 +440,7 @@ export function TvSlideshow({ messages, companyName, logoUrl = null, content = '
           {countdown ? (
             <>
               <span className="control-divider"></span>
-              <span ref={countdownRef} className="slide-countdown">Next in {pad(secondsRef.current)} seconds</span>
+              <span className="slide-countdown">Next in {pad(secondsLeft)} seconds</span>
             </>
           ) : null}
           <button
