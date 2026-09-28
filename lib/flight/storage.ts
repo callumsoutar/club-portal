@@ -131,14 +131,20 @@ export async function getSignatureUrl(
   if (!path) return null;
   if (path.startsWith("http") || path.startsWith("data:")) return path;
 
-  const supabase = createServiceSupabase();
-  const { data, error } = await supabase.storage
-    .from(SIGNATURE_BUCKET)
-    .createSignedUrl(path, expiresInSeconds);
+  try {
+    const supabase = createServiceSupabase();
+    const { data, error } = await supabase.storage
+      .from(SIGNATURE_BUCKET)
+      .createSignedUrl(path, expiresInSeconds);
 
-  if (error) {
+    if (error) {
+      console.error("[storage] signed url failed", error);
+      return null;
+    }
+    return data?.signedUrl ?? null;
+  } catch (error) {
+    // A missing service key should hide the signature, not take down the queue.
     console.error("[storage] signed url failed", error);
     return null;
   }
-  return data?.signedUrl ?? null;
 }
