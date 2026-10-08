@@ -46,7 +46,7 @@ export function AnswerSections({
 
   return (
     <div
-      className={cn(variant === "plain" ? "space-y-8" : "space-y-4", className)}
+      className={cn(variant === "plain" ? "space-y-10" : "space-y-4", className)}
     >
       {sections.map((section) => (
         <AnswerSection
@@ -96,13 +96,15 @@ function AnswerSection({
       <div
         className={cn(
           "flex items-center justify-between gap-3",
-          plain ? "mb-3" : "px-4 pt-3.5 pb-2",
+          plain
+            ? "mb-1 border-b border-foreground/15 pb-2"
+            : "px-4 pt-3.5 pb-2",
         )}
       >
         <h3
           className={cn(
             plain
-              ? "text-sm font-semibold tracking-tight text-foreground"
+              ? "text-sm font-semibold text-foreground"
               : "text-[13px] font-semibold tracking-tight",
           )}
         >
@@ -164,14 +166,16 @@ function AnswerRow({
   return (
     <div
       className={cn(
-        "flex items-baseline justify-between gap-6",
-        plain ? "py-2.5" : "px-4 py-2.5",
-        bordered && "border-t border-border/60",
+        plain
+          ? "grid grid-cols-1 gap-0.5 py-2.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-baseline sm:gap-8"
+          : "flex items-baseline justify-between gap-6 px-4 py-2.5",
+        bordered && "border-t border-border/80",
       )}
     >
       <dt
         className={cn(
-          "max-w-[48%] text-[13px] leading-snug",
+          "text-[13px] leading-snug",
+          !plain && "max-w-[48%]",
           isBoolean && !checked
             ? "font-medium text-destructive"
             : "text-muted-foreground",
@@ -180,20 +184,54 @@ function AnswerRow({
         {field.label}
       </dt>
 
-      <dd className="min-w-0 text-right text-sm leading-snug font-medium tracking-tight">
+      <dd
+        className={cn(
+          "min-w-0 text-sm leading-snug font-medium",
+          plain ? "text-left" : "text-right tracking-tight",
+        )}
+      >
         {isBoolean ? (
           checked ? (
             <Check
-              className="ml-auto size-4 text-foreground/45"
+              className={cn("size-4 text-foreground/70", !plain && "ml-auto")}
               strokeWidth={2.5}
               aria-label="Confirmed"
             />
           ) : (
-            <span className="inline-flex items-center justify-end gap-1 font-medium text-destructive">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 font-medium text-destructive",
+                !plain && "justify-end",
+              )}
+            >
               <X className="size-3.5" strokeWidth={2.5} />
               No
             </span>
           )
+        ) : plain ? (
+          <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <span
+              className={cn(
+                "break-words",
+                value === "—" && "font-normal text-muted-foreground/50",
+                expiry?.state === "expired" && "text-destructive",
+              )}
+            >
+              {value}
+            </span>
+            {note && (
+              <span
+                className={cn(
+                  "text-[13px] font-normal",
+                  expiry?.state === "expired" && "text-destructive",
+                  expiry?.state === "expiring" && "text-warning-foreground",
+                  expiry?.state === "valid" && "text-muted-foreground",
+                )}
+              >
+                {note}
+              </span>
+            )}
+          </span>
         ) : (
           <div className="flex flex-col items-end gap-0.5">
             <span

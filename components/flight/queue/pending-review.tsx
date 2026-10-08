@@ -299,13 +299,14 @@ function ReviewPanel({
 
   return (
     <>
-      {/* Explicit Close — labeled + large touch target so it isn't confused with Decline. */}
-      <div className="flex shrink-0 items-center gap-2 border-b px-4 py-2.5 sm:px-5">
+      {/* Slim chrome only. Identity and answers scroll together so the panel
+          reads as one document instead of a frozen header over a second pane. */}
+      <div className="flex shrink-0 items-center gap-2 border-b bg-background px-4 py-2.5 sm:px-5">
         <SheetClose asChild>
           <Button
             type="button"
             variant="outline"
-            className="h-10 gap-2 rounded-xl px-3.5 text-sm font-medium"
+            className="h-9 gap-2 rounded-lg px-3 text-sm font-medium"
           >
             <X className="size-4" strokeWidth={2.25} />
             Close
@@ -317,7 +318,7 @@ function ReviewPanel({
           <Button
             asChild
             variant="ghost"
-            className="h-10 gap-1 rounded-xl px-2.5 text-sm text-muted-foreground"
+            className="h-9 gap-1 rounded-lg px-2.5 text-sm text-muted-foreground"
           >
             <Link href={`/fly/instructor/authorisations/${item.id}`}>
               Full review
@@ -327,119 +328,107 @@ function ReviewPanel({
         </div>
       </div>
 
-      <SheetHeader className="space-y-0 shrink-0 border-b p-0 text-left">
-        <div className="px-5 pt-4 pr-5 pb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <SheetHeader className="space-y-0 border-b bg-muted/30 p-0 text-left">
+          <div className="px-5 py-5">
+            <p className="text-xs text-muted-foreground">
               Submitted {formatRelative(item.submitted_at)}
-            </span>
-          </div>
-
-          <div className="mt-2 flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <SheetTitle className="text-[1.375rem] leading-tight font-semibold tracking-tight">
-                {item.pilot_name}
-              </SheetTitle>
-              <SheetDescription className="mt-1 text-[13px] text-muted-foreground">
-                {licence}
-                <span className="mx-1.5 text-border">·</span>
-                <span className="font-mono font-medium text-[12px] text-purple-700 dark:text-purple-400">
-                  {item.reference}
-                </span>
-              </SheetDescription>
-              <p className="mt-2 text-sm font-medium text-foreground">
-                {formName}
-              </p>
-            </div>
-
-            {item.pilot_phone && (
-              <Button
-                asChild
-                variant="outline"
-                size="icon"
-                className="size-10 shrink-0 rounded-xl"
-              >
-                <a href={`tel:${item.pilot_phone}`} aria-label="Call pilot">
-                  <Phone className="size-4" />
-                </a>
-              </Button>
-            )}
-          </div>
-
-          {/* Flight summary — registration leads, supporting facts trail. */}
-          <div className="mt-4 flex items-end justify-between gap-4">
-            <div className="min-w-0">
-              <p className="font-mono text-lg leading-none font-semibold tracking-tight">
-                {registration}
-              </p>
-              {aircraftType && (
-                <p className="mt-1 truncate text-sm text-muted-foreground">
-                  {aircraftType}
-                </p>
-              )}
-            </div>
-
-            <div className="shrink-0 space-y-1 text-right text-sm">
-              {item.exercise && (
-                <p className="font-medium tracking-tight">{item.exercise}</p>
-              )}
-              <p className="text-muted-foreground">
-                {formatDate(item.flight_date, "EEE d MMM")}
-              </p>
-            </div>
-          </div>
-
-          {/* Currency at a glance — days remaining / past for BFR & medical. */}
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            <CurrencyChip label="BFR" info={bfr} />
-            <CurrencyChip label="Medical" info={medical} />
-          </div>
-        </div>
-      </SheetHeader>
-
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-5">
-        {issues.length > 0 && (
-          <div className="flex gap-3 rounded-xl bg-danger-muted px-4 py-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-            <div className="min-w-0 space-y-1">
-              <p className="text-sm font-medium text-destructive">
-                Needs attention
-              </p>
-              {issues.map((issue) => (
-                <p key={issue} className="text-sm text-destructive/90">
-                  {issue}
-                </p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <AnswerSections
-          template={item.template_snapshot}
-          answers={item.answers}
-          sources={sources}
-          expiryByKey={expiryByKey}
-        />
-
-        {item.signatureSignedUrl && (
-          <section className="overflow-hidden rounded-xl border bg-card">
-            <div className="border-b px-4 py-3">
-              <h3 className="text-sm font-semibold">Signature</h3>
-            </div>
-            <div className="relative mx-4 my-4 h-24 overflow-hidden rounded-lg border bg-white">
-              <Image
-                src={item.signatureSignedUrl}
-                alt={`Signature of ${item.pilot_name}`}
-                fill
-                unoptimized
-                className="object-contain p-3"
-              />
-            </div>
-            <p className="px-4 pb-4 text-xs text-muted-foreground">
-              Signed {formatDateTime(item.signed_at)}
             </p>
-          </section>
-        )}
+
+            <div className="mt-2 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <SheetTitle className="text-[1.375rem] leading-tight font-semibold tracking-tight">
+                  {item.pilot_name}
+                </SheetTitle>
+                <SheetDescription className="mt-1 text-[13px] text-muted-foreground">
+                  {licence}
+                  <span className="mx-1.5 text-border">·</span>
+                  <span className="font-mono text-[12px] font-medium text-foreground">
+                    {item.reference}
+                  </span>
+                </SheetDescription>
+                <p className="mt-1.5 text-sm text-muted-foreground">{formName}</p>
+              </div>
+
+              {item.pilot_phone && (
+                <Button
+                  asChild
+                  variant="outline"
+                  size="icon"
+                  className="size-10 shrink-0 rounded-lg bg-background"
+                >
+                  <a href={`tel:${item.pilot_phone}`} aria-label="Call pilot">
+                    <Phone className="size-4" />
+                  </a>
+                </Button>
+              )}
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border/70 pt-4">
+              <SummaryFact label="Aircraft" value={registration} mono />
+              <SummaryFact
+                label="Date"
+                value={formatDate(item.flight_date, "EEE d MMM")}
+              />
+              {aircraftType ? (
+                <SummaryFact label="Type" value={aircraftType} />
+              ) : null}
+              {item.exercise ? (
+                <SummaryFact label="Exercise" value={item.exercise} />
+              ) : null}
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <CurrencyChip label="BFR" info={bfr} />
+              <CurrencyChip label="Medical" info={medical} />
+            </div>
+          </div>
+        </SheetHeader>
+
+        <div className="space-y-4 px-5 py-5">
+          {issues.length > 0 && (
+            <div className="flex gap-3 rounded-xl bg-danger-muted px-4 py-3">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
+              <div className="min-w-0 space-y-1">
+                <p className="text-sm font-medium text-destructive">
+                  Needs attention
+                </p>
+                {issues.map((issue) => (
+                  <p key={issue} className="text-sm text-destructive/90">
+                    {issue}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <AnswerSections
+            template={item.template_snapshot}
+            answers={item.answers}
+            sources={sources}
+            expiryByKey={expiryByKey}
+          />
+
+          {item.signatureSignedUrl && (
+            <section className="overflow-hidden rounded-xl border bg-card">
+              <div className="border-b px-4 py-3">
+                <h3 className="text-sm font-semibold">Signature</h3>
+              </div>
+              <div className="relative mx-4 my-4 h-24 overflow-hidden rounded-lg border bg-white">
+                <Image
+                  src={item.signatureSignedUrl}
+                  alt={`Signature of ${item.pilot_name}`}
+                  fill
+                  unoptimized
+                  className="object-contain p-3"
+                />
+              </div>
+              <p className="px-4 pb-4 text-xs text-muted-foreground">
+                Signed {formatDateTime(item.signed_at)}
+              </p>
+            </section>
+          )}
+        </div>
       </div>
 
       {/* Single action row: decisions only — navigation lives in the header. */}
@@ -512,6 +501,32 @@ function ReviewPanel({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function SummaryFact({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div className="min-w-0">
+      <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 truncate text-sm font-semibold",
+          mono && "font-mono tracking-tight",
+        )}
+      >
+        {value}
+      </p>
+    </div>
   );
 }
 

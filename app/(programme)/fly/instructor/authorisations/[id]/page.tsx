@@ -8,8 +8,12 @@ import {
   collectIssues,
 } from "@/components/flight/authorisation/answer-sections";
 import { CommentBox } from "@/components/flight/approval/comment-box";
-import { DecisionBar } from "@/components/flight/approval/decision-bar";
-import { StatusBadge } from "@/components/flight/status-badge";
+import {
+  DecisionBar,
+  ReviewArchiveButton,
+  ReviewStatusBadge,
+  ReviewStatusProvider,
+} from "@/components/flight/approval/decision-bar";
 import { requireStaff } from "@/lib/flight/auth";
 import { LICENCE_SHORT } from "@/lib/flight/constants";
 import {
@@ -27,6 +31,7 @@ import {
   getComments,
 } from "@/lib/flight/queries";
 import { getSignatureUrl } from "@/lib/flight/storage";
+import { cn } from "@/lib/flight/utils";
 import type { ExpiryInfo } from "@/lib/flight/format";
 
 export const metadata = { title: "Review authorisation" };
@@ -86,211 +91,198 @@ export default async function ApprovalPage({
   const formName = getAuthorisationFormName(authorisation.template_snapshot);
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 pb-28 lg:px-6 lg:pb-10">
-      <div className="mb-5">
-        <Link
-          href="/fly/instructor"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="size-3.5" />
-          Authorisations
-        </Link>
-      </div>
+    <div className="mx-auto w-full max-w-3xl px-4 pb-28 lg:px-6 lg:pb-16">
+      <Link
+        href="/fly/instructor"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" />
+        Authorisations
+      </Link>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-6">
-        <div className="min-w-0 overflow-hidden rounded-xl border bg-card shadow-soft">
-          <header className="space-y-4 border-b px-5 py-5 sm:px-6">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-[1.75rem]">
-                    {authorisation.pilot_name}
-                  </h1>
-                  <StatusBadge status={authorisation.status} live />
-                  {authorisation.is_guest && (
-                    <span className="rounded-md bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
-                      Guest
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm font-medium text-foreground">{formName}</p>
-                <p className="text-sm text-muted-foreground">
-                  {[
-                    licence,
-                    authorisation.reference,
-                    `Submitted ${formatDateTime(authorisation.submitted_at)}`,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-
-              {authorisation.pilot_phone && (
-                <a
-                  href={`tel:${authorisation.pilot_phone}`}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-muted/60"
-                >
-                  <Phone className="size-3.5 text-muted-foreground" />
-                  Call
-                </a>
-              )}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/70 px-3.5 py-3 sm:grid-cols-3 sm:gap-4">
-              <MetaFact
-                label="Form"
-                value={formName}
-              />
-              <MetaFact
-                label="Aircraft"
-                value={registration}
-                sub={aircraftType}
-                mono
-              />
-              <MetaFact
-                label="Date"
-                value={formatDate(authorisation.flight_date, "EEE d MMM")}
-              />
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              Exercise ·{" "}
-              <span className="font-medium text-foreground">
-                {authorisation.exercise ?? "—"}
-              </span>
-              <span className="mx-2 text-border">·</span>
-              Instructor ·{" "}
-              <span className="font-medium text-foreground">
-                {instructorName}
-              </span>
-            </p>
-          </header>
-
-          {issues.length > 0 && (
-            <div className="flex gap-3 border-b bg-danger-muted/70 px-5 py-3.5 sm:px-6">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" />
-              <div className="min-w-0 space-y-1">
-                <p className="text-sm font-medium text-destructive">
-                  Needs attention before approval
-                </p>
-                {issues.map((issue) => (
-                  <p key={issue} className="text-sm text-destructive/90">
-                    {issue}
-                  </p>
-                ))}
-              </div>
-            </div>
+      <ReviewStatusProvider status={authorisation.status}>
+      <article className="mt-5 bg-background px-6 py-8 sm:px-10 sm:py-10">
+      <header className="relative">
+        <div className="absolute top-0 right-0 flex items-center gap-2">
+          {canArchive && (
+            <ReviewArchiveButton authorisationId={authorisation.id} />
           )}
-
-          <div className="space-y-8 px-5 py-6 sm:px-6">
-            <AnswerSections
-              template={authorisation.template_snapshot}
-              answers={authorisation.answers}
-              sources={sources}
-              expiryByKey={expiryByKey}
-              variant="plain"
-            />
-
-            {signatureUrl && (
-              <section className="space-y-3 border-t pt-6">
-                <h3 className="text-sm font-semibold tracking-tight">
-                  Signature
-                </h3>
-                <div className="relative h-24 max-w-md overflow-hidden rounded-lg border bg-white">
-                  <Image
-                    src={signatureUrl}
-                    alt={`Signature of ${authorisation.pilot_name}`}
-                    fill
-                    unoptimized
-                    className="object-contain object-left p-3"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Signed {formatDateTime(authorisation.signed_at)}
-                </p>
-              </section>
-            )}
-
-            <section className="space-y-4 border-t pt-6">
-              <h3 className="text-sm font-semibold tracking-tight">Comments</h3>
-              <CommentBox
-                authorisationId={authorisation.id}
-                comments={comments}
-                canPostInternal={user.profile.role !== "member"}
-                plain
-              />
-            </section>
-          </div>
+          <ReviewStatusBadge />
         </div>
+        <h1 className="pr-36 text-[2rem] leading-none font-semibold tracking-[-0.035em] sm:pr-44">
+          {authorisation.pilot_name}
+        </h1>
+        <p className="mt-3 text-base">{formName}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {[
+            licence,
+            authorisation.is_guest ? "Guest" : null,
+            authorisation.reference,
+            formatDateTime(authorisation.submitted_at),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          {authorisation.pilot_phone ? (
+            <>
+              {" · "}
+              <a
+                href={`tel:${authorisation.pilot_phone}`}
+                className="text-foreground underline decoration-foreground/25 underline-offset-4 hover:decoration-foreground"
+              >
+                <Phone className="mr-1 inline size-3.5 align-[-2px]" />
+                Call
+              </a>
+            </>
+          ) : null}
+        </p>
 
-        <aside className="space-y-4 lg:sticky lg:top-20">
-          {(isActionable || canArchive) && (
-            <div className="rounded-xl border bg-card p-5 shadow-soft">
-              <p className="mb-4 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Decision
-              </p>
-              <DecisionBar
-                authorisationId={authorisation.id}
-                pilotName={authorisation.pilot_name}
-                hasExpiredCurrency={hasExpiredCurrency}
-                canApprove={isActionable}
-                canArchive={canArchive}
+        <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-foreground/10 pt-6 sm:grid-cols-4">
+          <Fact label="Aircraft" value={registration} detail={aircraftType} mono />
+          <Fact
+            label="Date"
+            value={formatDate(authorisation.flight_date, "EEE d MMM")}
+          />
+          <Fact label="Exercise" value={authorisation.exercise ?? "—"} />
+          <Fact label="Instructor" value={instructorName} />
+        </dl>
+
+        <p className="mt-5 text-sm text-muted-foreground">
+          <CurrencyNote label="BFR" info={bfr} />
+          <span className="mx-2.5 text-foreground/20">·</span>
+          <CurrencyNote label="Medical" info={medical} />
+        </p>
+
+        {issues.length > 0 && (
+          <div className="mt-4 flex gap-2 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+            <div className="space-y-1">
+              {issues.map((issue) => (
+                <p key={issue}>{issue}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isActionable && (
+          <DecisionBar
+            authorisationId={authorisation.id}
+            pilotName={authorisation.pilot_name}
+            hasExpiredCurrency={hasExpiredCurrency}
+            canApprove={isActionable}
+          />
+        )}
+      </header>
+
+      <div className="mt-10 border-t border-foreground/10 pt-10">
+        <AnswerSections
+          template={authorisation.template_snapshot}
+          answers={authorisation.answers}
+          sources={sources}
+          expiryByKey={expiryByKey}
+          variant="plain"
+        />
+
+        {signatureUrl && (
+          <section className="mt-10">
+            <h2 className="border-b border-foreground/15 pb-2 text-sm font-semibold">
+              Signature
+            </h2>
+            <div className="relative mt-4 h-20 max-w-xs">
+              <Image
+                src={signatureUrl}
+                alt={`Signature of ${authorisation.pilot_name}`}
+                fill
+                unoptimized
+                className="object-contain object-left"
               />
             </div>
-          )}
+            <p className="mt-2 text-sm text-muted-foreground">
+              Signed {formatDateTime(authorisation.signed_at)}
+            </p>
+          </section>
+        )}
 
-          {activity.length > 0 && (
-            <section className="rounded-xl border bg-card p-4 shadow-soft">
-              <h3 className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Activity
-              </h3>
-              <ol className="space-y-3">
-                {activity.map((entry) => (
-                  <li key={entry.id} className="space-y-0.5">
-                    <p className="text-sm leading-snug">{entry.summary}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatRelative(entry.created_at)}
-                      {entry.actor_label ? ` · ${entry.actor_label}` : ""}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          )}
-        </aside>
+        <section className="mt-10">
+          <h2 className="border-b border-foreground/15 pb-2 text-sm font-semibold">
+            Comments
+          </h2>
+          <div className="mt-4">
+            <CommentBox
+              authorisationId={authorisation.id}
+              comments={comments}
+              canPostInternal={user.profile.role !== "member"}
+              plain
+            />
+          </div>
+        </section>
+
+        {activity.length > 0 && (
+          <section className="mt-10">
+            <h2 className="border-b border-foreground/15 pb-2 text-sm font-semibold">
+              Activity
+            </h2>
+            <ol className="mt-4 space-y-4">
+              {activity.map((entry) => (
+                <li key={entry.id}>
+                  <p className="text-sm">{entry.summary}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {formatRelative(entry.created_at)}
+                    {entry.actor_label ? ` · ${entry.actor_label}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
       </div>
+      </article>
+      </ReviewStatusProvider>
     </div>
   );
 }
 
-function MetaFact({
+function Fact({
   label,
   value,
-  sub,
+  detail,
   mono,
 }: {
   label: string;
   value: string;
-  sub?: string | null;
+  detail?: string | null;
   mono?: boolean;
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-        {label}
-      </p>
-      <p
-        className={
-          mono
-            ? "mt-0.5 truncate font-mono text-sm font-semibold"
-            : "mt-0.5 truncate text-sm font-semibold"
-        }
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd
+        className={cn(
+          "mt-1 truncate text-[15px] font-medium",
+          mono && "font-mono",
+        )}
       >
         {value}
-      </p>
-      {sub ? (
-        <p className="truncate text-xs text-muted-foreground">{sub}</p>
+      </dd>
+      {detail ? (
+        <dd className="truncate text-sm text-muted-foreground">{detail}</dd>
       ) : null}
     </div>
+  );
+}
+
+function CurrencyNote({ label, info }: { label: string; info: ExpiryInfo }) {
+  return (
+    <span>
+      {label}{" "}
+      <span
+        className={cn(
+          "text-foreground",
+          info.state === "expired" && "text-destructive",
+          info.state === "expiring" && "font-medium text-warning-foreground",
+        )}
+      >
+        {info.label}
+      </span>
+    </span>
   );
 }

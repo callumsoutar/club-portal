@@ -137,9 +137,9 @@ export async function submitAuthorisation(
   }
 
   const flightDate = asString(values.flight_date);
-  const returnEta = flightDate
-    ? combineDateTime(flightDate, asString(values.return_eta) ?? "")
-    : null;
+  // Prefer SAR time when present (cross-country forms); fall back to return ETA.
+  const etaTime = asString(values.sar_time) ?? asString(values.return_eta) ?? "";
+  const returnEta = flightDate ? combineDateTime(flightDate, etaTime) : null;
 
   // The signature lives in storage, not in the answer blob.
   const storedAnswers: AnswerMap = { ...values, signature: signaturePath };
