@@ -7,6 +7,7 @@ import { STATUS_META } from "@/lib/flight/constants";
 import { getSessionUser } from "@/lib/flight/auth";
 import {
   formatDate,
+  formatDateTime,
   formatRelative,
   getAuthorisationFormName,
 } from "@/lib/flight/format";
@@ -49,107 +50,139 @@ export default async function GuestAuthorisationPage({
   const registration = authorisation.aircraft_registration ?? "—";
   const isWaiting =
     authorisation.status === "submitted" || authorisation.status === "pending";
-  const appearance = statusAppearance(authorisation.status);
+  const accent = statusAccent(authorisation.status);
+
+  const showDestination =
+    Boolean(authorisation.destination) &&
+    authorisation.destination !== authorisation.exercise;
 
   return (
-    <div className="min-h-dvh bg-muted/45">
-      <header className="border-b bg-card">
-        <div className="mx-auto flex h-14 w-full max-w-lg items-center justify-between px-5">
+    <div className="flex min-h-dvh flex-col bg-background">
+      <header className="sticky top-0 z-10 border-b border-border/70 bg-background/90 backdrop-blur-md">
+        <div className="mx-auto flex h-14 w-full max-w-lg items-center justify-between gap-3 px-5">
           <Logo clubLogoUrl={clubLogoUrl} showMark={!clubLogoUrl} />
-          <StatusBadge status={authorisation.status} live />
+          <StatusBadge status={authorisation.status} />
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-lg px-4 py-6 sm:px-5 sm:py-8">
-        <article className="overflow-hidden rounded-xl border bg-card shadow-xs">
-          {/* Header block with solid colour background */}
-          <div className={cn("px-5 pt-6 pb-5 sm:px-7 sm:pt-7 sm:pb-6", appearance.bg)}>
-            <p className={cn("font-mono text-xs tracking-wide opacity-80", appearance.text)}>
-              {authorisation.reference}
-            </p>
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col px-5 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pt-8">
+        {/* Status hero */}
+        <section>
+          <div className={cn("mb-5 h-1 w-12 rounded-full", accent.bar)} />
 
-            <h1 className={cn("mt-2 text-[1.85rem] leading-none font-semibold tracking-[-0.03em]", appearance.text)}>
-              {meta.label}
-            </h1>
+          <p className="font-mono text-[12px] tracking-wide text-muted-foreground">
+            {authorisation.reference}
+          </p>
 
-            <p className={cn("mt-3 max-w-md text-[15px] leading-relaxed opacity-90", appearance.text)}>
-              {statusMessage(authorisation.status)}
-            </p>
-          </div>
+          <h1 className="mt-2 text-[2rem] leading-[1.1] font-semibold tracking-[-0.035em] text-foreground sm:text-[2.25rem]">
+            {meta.label}
+          </h1>
 
-          <div className="px-5 pt-6 pb-6 sm:px-7 sm:pt-7 sm:pb-8">
-            <p className="text-base leading-relaxed text-foreground">
-              <span className="font-mono font-semibold tracking-tight">
+          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">
+            {statusMessage(authorisation.status)}
+          </p>
+        </section>
+
+        {/* Aircraft summary */}
+        <section className="mt-8 rounded-xl border border-border bg-card px-4 py-4 sm:px-5 sm:py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                Aircraft
+              </p>
+              <p className="mt-1 font-mono text-2xl font-semibold tracking-tight text-foreground">
                 {registration}
+              </p>
+              <p className="mt-1.5 text-sm text-muted-foreground">{formName}</p>
+            </div>
+            {isWaiting ? (
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-info-muted px-2.5 py-1 text-[11px] font-medium text-info">
+                <span className="size-1.5 animate-pulse rounded-full bg-info" />
+                Awaiting review
               </span>
-            </p>
-
-            <p className="mt-1.5 text-sm text-muted-foreground">{formName}</p>
-
-            <section className="mt-8 border-t pt-7">
-              <h2 className="text-[13px] font-semibold text-foreground">
-                Flight details
-              </h2>
-              <dl className="mt-4 space-y-3">
-                <DetailRow label="Pilot" value={authorisation.pilot_name} />
-                <DetailRow
-                  label="Date"
-                  value={formatDate(authorisation.flight_date)}
-                />
-                <DetailRow
-                  label="Exercise"
-                  value={authorisation.exercise ?? "—"}
-                />
-                {authorisation.destination ? (
-                  <DetailRow
-                    label="Destination"
-                    value={authorisation.destination}
-                  />
-                ) : null}
-                {authorisation.passenger_names ? (
-                  <DetailRow
-                    label="Passengers"
-                    value={authorisation.passenger_names}
-                  />
-                ) : null}
-              </dl>
-            </section>
-
-            {activity.length > 0 ? (
-              <section className="mt-9 border-t pt-7">
-                <h2 className="text-[13px] font-semibold text-foreground">
-                  Updates
-                </h2>
-                <ol className="mt-4 space-y-4">
-                  {activity.map((entry) => (
-                    <li key={entry.id}>
-                      <p className="text-[15px] leading-snug font-medium">
-                        {entry.summary}
-                      </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {formatRelative(entry.created_at)}
-                        {entry.actor_label ? ` · ${entry.actor_label}` : ""}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              </section>
             ) : null}
           </div>
-        </article>
+        </section>
 
-        <div className="mt-5">
+        {/* Flight details */}
+        <section className="mt-6">
+          <h2 className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+            Flight details
+          </h2>
+
+          <dl className="mt-3 divide-y divide-border rounded-xl border border-border bg-card">
+            <DetailRow label="Pilot" value={authorisation.pilot_name} />
+            <DetailRow
+              label="Date"
+              value={formatDate(authorisation.flight_date)}
+            />
+            <DetailRow
+              label="Exercise"
+              value={authorisation.exercise ?? "—"}
+            />
+            {showDestination ? (
+              <DetailRow
+                label="Destination"
+                value={authorisation.destination!}
+              />
+            ) : null}
+            {authorisation.return_eta ? (
+              <DetailRow
+                label="Return / SAR"
+                value={formatDateTime(authorisation.return_eta)}
+              />
+            ) : null}
+            {authorisation.passenger_names ? (
+              <DetailRow
+                label="Passengers"
+                value={authorisation.passenger_names}
+              />
+            ) : null}
+          </dl>
+        </section>
+
+        {/* Activity */}
+        {activity.length > 0 ? (
+          <section className="mt-8">
+            <h2 className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+              Updates
+            </h2>
+
+            <ol className="relative mt-4 space-y-0 border-l border-border ml-1.5">
+              {activity.map((entry, index) => (
+                <li key={entry.id} className="relative pl-5 pb-5 last:pb-0">
+                  <span
+                    className={cn(
+                      "absolute top-1.5 -left-[5px] size-2.5 rounded-full ring-4 ring-background",
+                      index === 0 ? accent.dot : "bg-border",
+                    )}
+                  />
+                  <p className="text-[15px] leading-snug font-medium text-foreground">
+                    {entry.summary}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {formatRelative(entry.created_at)}
+                    {entry.actor_label ? ` · ${entry.actor_label}` : ""}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {/* Footer action — full-width on phones for easier tapping */}
+        <div className="mt-8 border-t border-border/70 pt-6 pb-2">
           {user ? (
             <Link
               href="/fly"
-              className="inline-flex h-10 items-center justify-center rounded-lg border bg-card px-4 text-sm font-medium shadow-xs transition-colors hover:bg-muted/50"
+              className="inline-flex h-11 w-full items-center justify-center rounded-lg border border-border bg-card text-sm font-medium transition-colors hover:bg-muted/60 sm:w-auto sm:px-5"
             >
               Back to my flights
             </Link>
           ) : (
             <Link
               href="/authorise"
-              className="inline-flex h-10 items-center justify-center rounded-lg border bg-card px-4 text-sm font-medium shadow-xs transition-colors hover:bg-muted/50"
+              className="inline-flex h-11 w-full items-center justify-center rounded-lg border border-border bg-card text-sm font-medium transition-colors hover:bg-muted/60 sm:w-auto sm:px-5"
             >
               {isWaiting ? "Submit another" : "Start another authorisation"}
             </Link>
@@ -162,47 +195,29 @@ export default async function GuestAuthorisationPage({
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-4 text-[15px]">
-      <dt className="w-24 shrink-0 text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 font-medium text-foreground">{value}</dd>
+    <div className="flex flex-col gap-0.5 px-4 py-3.5 sm:flex-row sm:items-baseline sm:gap-6 sm:px-5">
+      <dt className="w-28 shrink-0 text-[13px] text-muted-foreground">
+        {label}
+      </dt>
+      <dd className="min-w-0 text-[15px] font-medium break-words text-foreground">
+        {value}
+      </dd>
     </div>
   );
 }
 
-function statusAppearance(status: AuthorisationStatus) {
+function statusAccent(status: AuthorisationStatus) {
   switch (status) {
     case "submitted":
-      return {
-        bg: "bg-info",
-        text: "text-white",
-      };
     case "pending":
-      return {
-        bg: "bg-warning",
-        text: "text-warning-foreground",
-      };
+      return { bar: "bg-info", dot: "bg-info" };
     case "approved":
     case "completed":
-      return {
-        bg: "bg-success",
-        text: "text-white",
-      };
+      return { bar: "bg-success", dot: "bg-success" };
     case "declined":
-      return {
-        bg: "bg-destructive",
-        text: "text-white",
-      };
-    case "cancelled":
-    case "expired":
-      return {
-        bg: "bg-muted-foreground/20",
-        text: "text-foreground",
-      };
+      return { bar: "bg-destructive", dot: "bg-destructive" };
     default:
-      return {
-        bg: "bg-muted",
-        text: "text-foreground",
-      };
+      return { bar: "bg-muted-foreground/40", dot: "bg-muted-foreground/50" };
   }
 }
 

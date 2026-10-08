@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Share2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 
-import { SuccessAnimation } from "@/components/flight/success-animation";
 import { CopyLinkButton } from "@/components/flight/copy-link-button";
 import { Logo } from "@/components/flight/logo";
 import { Button } from "@/components/flight/ui/button";
@@ -17,8 +16,8 @@ interface SubmittedViewProps {
 }
 
 /**
- * Post-submit confirmation — one job: reassure, then get the pilot to
- * their tracking link (or home) without visual noise.
+ * Post-submit confirmation — confirm receipt, show the reference, then
+ * get the pilot onto tracking without celebration chrome.
  */
 export function SubmittedView({
   reference,
@@ -27,113 +26,63 @@ export function SubmittedView({
   memberLoginEnabled = true,
 }: SubmittedViewProps) {
   return (
-    <div className="relative flex min-h-dvh flex-col overflow-hidden">
-      {/* Soft success wash — atmosphere without competing with the mark. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(55rem_28rem_at_50%_-8%,color-mix(in_oklch,var(--success)_18%,transparent),transparent_68%),radial-gradient(36rem_22rem_at_90%_10%,color-mix(in_oklch,var(--primary)_10%,transparent),transparent_70%),radial-gradient(28rem_20rem_at_10%_90%,color-mix(in_oklch,var(--info)_8%,transparent),transparent_70%)]"
-      />
-
-      <div className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-5 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6">
+    <div className="flex min-h-dvh flex-col bg-background">
+      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-8">
         <motion.div
-          className="flex justify-center pt-2 sm:pt-4"
-          initial={{ opacity: 0, y: -6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, ease: [0.32, 0.72, 0, 1] }}
+          className="flex items-center justify-between gap-4 border-b border-border/70 pb-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.25 }}
         >
           <Logo className="opacity-90" />
+          <span className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+            Submitted
+          </span>
         </motion.div>
 
-        <div className="flex flex-1 flex-col justify-center py-8 sm:py-12">
+        <div className="flex flex-1 flex-col justify-center py-10 sm:py-14">
           <motion.div
-            className="flex flex-col items-center text-center"
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: {},
-              show: { transition: { staggerChildren: 0.07, delayChildren: 0.08 } },
-            }}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
           >
-            <motion.div
-              variants={{
-                hidden: { opacity: 0, scale: 0.92 },
-                show: {
-                  opacity: 1,
-                  scale: 1,
-                  transition: { type: "spring", stiffness: 280, damping: 20 },
-                },
-              }}
-            >
-              <SuccessAnimation />
-            </motion.div>
+            <p className="text-[13px] font-medium text-primary">
+              Waiting for instructor approval
+            </p>
 
-            <motion.h1
-              className="mt-7 text-[1.85rem] leading-tight font-semibold tracking-tight text-balance text-foreground sm:text-[2.1rem]"
-              variants={{
-                hidden: { opacity: 0, y: 10 },
-                show: {
-                  opacity: 1,
-                  y: 0,
-                  transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] },
-                },
-              }}
-            >
+            <h1 className="mt-3 max-w-[16ch] text-[2rem] leading-[1.1] font-semibold tracking-[-0.035em] text-foreground sm:text-[2.35rem]">
               Sent to your instructor
-            </motion.h1>
+            </h1>
 
-            <motion.p
-              className="mt-3 max-w-[20rem] text-[15px] leading-relaxed text-foreground/65 text-pretty sm:max-w-sm"
-              variants={{
-                hidden: { opacity: 0, y: 10 },
-                show: {
-                  opacity: 1,
-                  y: 0,
-                  transition: { duration: 0.4, ease: [0.32, 0.72, 0, 1] },
-                },
-              }}
-            >
-              Locked and waiting for approval. Most are actioned within a few
-              minutes.
-            </motion.p>
+            <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+              Your authorisation is locked. You’ll be notified when it’s approved
+              or if anything needs changing.
+            </p>
 
             {reference && (
-              <motion.div
-                className="mt-6 inline-flex items-center gap-2.5 rounded-full border border-foreground/10 bg-card px-4 py-2 shadow-soft"
-                variants={{
-                  hidden: { opacity: 0, y: 8 },
-                  show: {
-                    opacity: 1,
-                    y: 0,
-                    transition: { duration: 0.35, ease: [0.32, 0.72, 0, 1] },
-                  },
-                }}
-              >
-                <span className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-                  Ref
-                </span>
-                <span className="font-mono text-sm font-semibold tracking-tight text-foreground">
+              <div className="mt-8 border border-border bg-muted/30 px-4 py-3.5">
+                <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                  Reference
+                </p>
+                <p className="mt-1 font-mono text-lg font-semibold tracking-tight text-foreground">
                   {reference}
-                </span>
-              </motion.div>
+                </p>
+              </div>
             )}
           </motion.div>
 
           <motion.div
             className="mt-10 space-y-3"
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.35,
-              duration: 0.45,
-              ease: [0.32, 0.72, 0, 1],
-            }}
+            transition={{ delay: 0.12, duration: 0.35, ease: [0.25, 0.1, 0.25, 1] }}
           >
             {token && (
               <>
                 <Button
                   asChild
                   size="lg"
-                  className="h-14 w-full gap-2 rounded-2xl text-[15px] font-semibold shadow-lift"
+                  className="h-12 w-full gap-2 rounded-lg text-[15px] font-semibold"
                 >
                   <Link href={`/a/${token}`}>
                     Track this authorisation
@@ -143,18 +92,17 @@ export function SubmittedView({
 
                 <CopyLinkButton
                   path={`/a/${token}`}
-                  label="Share tracking link"
-                  copiedLabel="Link ready"
-                  icon={<Share2 className="size-4" />}
-                  className="h-12 w-full gap-2 rounded-2xl border-border bg-card text-[15px] font-medium"
+                  label="Copy tracking link"
+                  copiedLabel="Copied"
+                  className="h-11 w-full rounded-lg border-border bg-transparent text-[15px] font-medium"
                 />
               </>
             )}
 
-            <div className="pt-1 text-center">
+            <div className="pt-2 text-center">
               <Link
                 href={signedIn ? "/fly" : "/"}
-                className="inline-flex h-11 items-center justify-center px-4 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
               >
                 {signedIn ? "Back to my flights" : "Done"}
               </Link>
@@ -163,12 +111,7 @@ export function SubmittedView({
         </div>
 
         {!signedIn && memberLoginEnabled && (
-          <motion.p
-            className="pb-2 text-center text-[13px] leading-relaxed text-muted-foreground"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.55, duration: 0.4 }}
-          >
+          <p className="border-t border-border/70 pt-4 pb-1 text-center text-[13px] leading-relaxed text-muted-foreground">
             Next time, skip the details.{" "}
             <Link
               href="/signup"
@@ -176,7 +119,7 @@ export function SubmittedView({
             >
               Create an account
             </Link>
-          </motion.p>
+          </p>
         )}
       </div>
     </div>
