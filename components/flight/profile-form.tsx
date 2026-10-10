@@ -82,78 +82,82 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
       <Card title="About you">
-        <Field label="Full name">
-          <Input {...register("full_name")} className="h-12 rounded-xl text-base sm:h-11 sm:text-sm" />
-        </Field>
-        <Field label="Email" hint="Contact the club to change this">
-          <Input value={profile.email} disabled className="h-12 rounded-xl text-base sm:h-11 sm:text-sm" />
-        </Field>
-        <Field label="Phone">
-          <Input
-            {...register("phone")}
-            type="tel"
-            autoComplete="tel"
-            className="h-12 rounded-xl text-base sm:h-11 sm:text-sm"
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name">
+            <Input {...register("full_name")} className={fieldClass} />
+          </Field>
+          <Field label="Phone">
+            <Input
+              {...register("phone")}
+              type="tel"
+              autoComplete="tel"
+              className={fieldClass}
+            />
+          </Field>
+          <Field label="Email" hint="Contact the club to change this" className="sm:col-span-2">
+            <Input value={profile.email} disabled className={fieldClass} />
+          </Field>
+        </div>
       </Card>
 
       <Card title="Licence & currency">
-        <Field label="Licence type">
-          <Select
-            value={watch("licence_type") || "__none"}
-            onValueChange={(v: string) => setValue("licence_type", v === "__none" ? "" : (v as LicenceType))}
-          >
-            <SelectTrigger className="h-12 w-full rounded-xl text-base sm:h-11 sm:text-sm">
-              <SelectValue placeholder="Choose your licence" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">Not stated</SelectItem>
-              {Object.entries(LICENCE_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Licence type">
+            <Select
+              value={watch("licence_type") || "__none"}
+              onValueChange={(v: string) => setValue("licence_type", v === "__none" ? "" : (v as LicenceType))}
+            >
+              <SelectTrigger className={fieldClass}>
+                <SelectValue placeholder="Choose your licence" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Not stated</SelectItem>
+                {Object.entries(LICENCE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
 
-        <Field label="Licence number">
-          <Input {...register("licence_number")} className="h-12 rounded-xl text-base sm:h-11 sm:text-sm" />
-        </Field>
+          <Field label="Licence number">
+            <Input {...register("licence_number")} className={fieldClass} />
+          </Field>
 
-        <Field label="BFR expiry" status={bfr}>
-          <DatePicker
-            id="bfr_expiry"
-            value={watch("bfr_expiry")}
-            onChange={(v) =>
-              setValue("bfr_expiry", v, { shouldDirty: true, shouldValidate: true })
-            }
-            mode="expiry"
-            clearable
-            label="BFR expiry"
-            className="h-12 rounded-xl sm:h-11 sm:text-sm"
-          />
-        </Field>
+          <Field label="BFR expiry" status={bfr}>
+            <DatePicker
+              id="bfr_expiry"
+              value={watch("bfr_expiry")}
+              onChange={(v) =>
+                setValue("bfr_expiry", v, { shouldDirty: true, shouldValidate: true })
+              }
+              mode="expiry"
+              clearable
+              label="BFR expiry"
+              className={fieldClass}
+            />
+          </Field>
 
-        <Field label="Medical expiry" status={medical}>
-          <DatePicker
-            id="medical_expiry"
-            value={watch("medical_expiry")}
-            onChange={(v) =>
-              setValue("medical_expiry", v, {
-                shouldDirty: true,
-                shouldValidate: true,
-              })
-            }
-            mode="expiry"
-            clearable
-            label="Medical expiry"
-            className="h-12 rounded-xl sm:h-11 sm:text-sm"
-          />
-        </Field>
+          <Field label="Medical expiry" status={medical}>
+            <DatePicker
+              id="medical_expiry"
+              value={watch("medical_expiry")}
+              onChange={(v) =>
+                setValue("medical_expiry", v, {
+                  shouldDirty: true,
+                  shouldValidate: true,
+                })
+              }
+              mode="expiry"
+              clearable
+              label="Medical expiry"
+              className={fieldClass}
+            />
+          </Field>
+        </div>
       </Card>
 
       <Card title="Preferences">
@@ -164,7 +168,7 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
               setValue("preferred_aircraft_id", v === "__none" ? "" : v)
             }
           >
-            <SelectTrigger className="h-12 w-full rounded-xl text-base sm:h-11 sm:text-sm">
+            <SelectTrigger className={fieldClass}>
               <SelectValue placeholder="No preference" />
             </SelectTrigger>
             <SelectContent>
@@ -180,28 +184,25 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
       </Card>
 
       <Card title="Emergency contact">
-        <Field label="Name">
-          <Input
-            {...register("emergency_contact_name")}
-            className="h-12 rounded-xl text-base sm:h-11 sm:text-sm"
-          />
-        </Field>
-        <Field label="Phone">
-          <Input
-            {...register("emergency_contact_phone")}
-            type="tel"
-            className="h-12 rounded-xl text-base sm:h-11 sm:text-sm"
-          />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name">
+            <Input
+              {...register("emergency_contact_name")}
+              className={fieldClass}
+            />
+          </Field>
+          <Field label="Phone">
+            <Input
+              {...register("emergency_contact_phone")}
+              type="tel"
+              className={fieldClass}
+            />
+          </Field>
+        </div>
       </Card>
 
-      <div className="pb-safe sticky bottom-0 -mx-4 border-t bg-background/90 px-4 pt-3 pb-3 backdrop-blur-xl sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:backdrop-blur-none">
-        <Button
-          type="submit"
-          size="lg"
-          disabled={pending}
-          className="h-12 w-full gap-2 rounded-xl sm:w-auto"
-        >
+      <div className="flex justify-end">
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
           {pending && <Loader2 className="size-4 animate-spin" />}
           Save changes
         </Button>
@@ -210,13 +211,15 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
   );
 }
 
+const fieldClass = "h-11 w-full rounded-lg bg-background text-base sm:text-sm";
+
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="surface-premium rounded-2xl border">
-      <header className="border-b bg-muted/30 px-5 py-3">
-        <h2 className="text-sm font-semibold">{title}</h2>
+    <section className="overflow-hidden rounded-xl border bg-card shadow-xs">
+      <header className="border-b border-border/70 px-5 py-3.5">
+        <h2 className="text-[13px] font-semibold">{title}</h2>
       </header>
-      <div className="space-y-4 p-5">{children}</div>
+      <div className="p-5">{children}</div>
     </section>
   );
 }
@@ -225,24 +228,26 @@ function Field({
   label,
   hint,
   status,
+  className,
   children,
 }: {
   label: string;
   hint?: string;
   status?: ReturnType<typeof getExpiryInfo>;
+  className?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-baseline justify-between gap-3">
+    <div className={cn("space-y-2", className)}>
+      <div className="flex items-center justify-between gap-3">
         <Label className="text-sm font-medium">{label}</Label>
         {status && status.state !== "unknown" && (
           <span
             className={cn(
-              "text-xs font-medium",
-              status.state === "expired" && "text-destructive",
-              status.state === "expiring" && "text-warning-foreground",
-              status.state === "valid" && "text-success",
+              "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              status.state === "expired" && "bg-danger-muted text-destructive",
+              status.state === "expiring" && "bg-warning-muted text-warning-foreground",
+              status.state === "valid" && "bg-success-muted text-success",
             )}
           >
             {status.label}

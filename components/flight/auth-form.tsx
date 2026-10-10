@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/flight/ui/button";
+import { AuthDivider, GoogleSignInButton } from "@/components/google-sign-in-button";
 import {
   Field,
   FieldDescription,
@@ -137,6 +138,13 @@ export function AuthForm({
                 : "Sign in to see your history and skip the form filling."}
           </p>
         </div>
+
+        <GoogleSignInButton
+          variant="flight"
+          nextPath={searchParams.get("next") ?? undefined}
+          onError={(message) => toast.error(message)}
+        />
+        <AuthDivider className="my-1" />
 
         {isSignup && (
           <Field data-invalid={Boolean(errors.full_name) || undefined}>

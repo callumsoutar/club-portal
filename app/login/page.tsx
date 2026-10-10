@@ -6,6 +6,7 @@ import { redirect } from 'next/navigation'
 import { Logo } from '@/components/logo'
 import { LoginForm } from '@/components/login-form'
 import { getAdminUser, landingPath, safeNextPath } from '@/lib/auth'
+import { signInErrorFromQuery } from '@/lib/sign-in-errors'
 import { getSessionUser } from '@/lib/flight/auth'
 import { getCompanySettings } from '@/lib/get-company-settings'
 
@@ -16,14 +17,14 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>
+  searchParams: Promise<{ next?: string; error?: string }>
 }) {
   const [admin, session, company] = await Promise.all([
     getAdminUser(),
     getSessionUser(),
     getCompanySettings(),
   ])
-  const { next } = await searchParams
+  const { next, error } = await searchParams
   const nextPath = safeNextPath(next)
   if (admin || session) {
     const destination = landingPath({
@@ -48,7 +49,7 @@ export default async function LoginPage({
         <p className="login-lede">
           One account for safety messages and flight authorisations. The public site stays open without signing in.
         </p>
-        <LoginForm nextPath={nextPath ?? ''} />
+        <LoginForm nextPath={nextPath ?? ''} initialError={signInErrorFromQuery(error)} />
         <p className="login-lede">
           <Link href="/signup">Create an account</Link>
           {' · '}

@@ -184,7 +184,12 @@ a { color:inherit; text-decoration:none; }
 .login-aside { position: relative; overflow: hidden; background: var(--ink); display: flex; align-items: flex-end; padding: 40px; }
 .login-aside:before { content: 'SAFETY'; position: absolute; right: -18px; bottom: -24px; font-size: clamp(92px, 11vw, 168px); font-weight: 900; letter-spacing: -.08em; line-height: .8; color: #17191a; }
 .login-aside p { position: relative; z-index: 1; margin: 0; max-width: 220px; color: #d5d8d5; font-size: 15px; line-height: 1.45; }
-.login-form { display: grid; gap: 16px; margin-top: 32px; max-width: 380px; }
+.login-auth { display: grid; gap: 16px; margin-top: 32px; max-width: 380px; }
+.login-form { display: grid; gap: 16px; margin-top: 0; max-width: none; }
+.login-google { width: 100%; height: 48px; gap: 10px; }
+.login-google:disabled { opacity: .65; cursor: default; }
+.login-divider { display: flex; align-items: center; gap: 12px; color: var(--text-muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .admin-form { display: grid; gap: 16px; margin-top: 24px; }
 .login-form .admin-primary { width: 100%; height: 48px; margin-top: 4px; }
 .login-form .admin-primary:disabled { opacity: .65; cursor: default; }
@@ -195,7 +200,7 @@ a { color:inherit; text-decoration:none; }
   .login-copy { margin: 0; max-width: none; padding: 28px 20px 56px; }
   .login-copy .logo { margin-bottom: 32px; }
   .login-copy .back-link { margin-bottom: 28px; }
-  .login-form { max-width: none; }
+  .login-auth, .login-form { max-width: none; }
 }
 .login-form label, .admin-form label { display: grid; gap: 7px; font-size: 12px; font-weight: 700; }
 .login-form input, .admin-form input, .admin-form textarea, .admin-form select { width: 100%; border: 1px solid var(--line); background: white; color: var(--ink); font: inherit; font-weight: 400; font-size: 14px; padding: 11px 12px; }

@@ -29,7 +29,7 @@ export function AppShell({ role, safetyAdmin, name, email, children }: AppShellP
     >
       <AppSidebar flightRole={role} safetyAdmin={safetyAdmin} name={name} email={email} />
       <SidebarInset className="min-w-0 bg-muted">
-        <SiteHeader role={role} />
+        <SiteHeader />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-1 flex-col gap-5 py-5 md:gap-6 md:py-6">

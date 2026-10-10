@@ -2,7 +2,37 @@ import 'server-only'
 
 import { cache } from 'react'
 
+import { isMemberLoginEnabled } from '@/lib/flight/queries'
+import type { AppRole } from '@/lib/flight/types'
 import { createClient } from '@/lib/supabase/server'
+
+type ServerSupabase = Awaited<ReturnType<typeof createClient>>
+
+export async function resolveSignedInDestination(
+  supabase: ServerSupabase,
+  userId: string,
+  nextPath: string | null,
+): Promise<{ destination: string } | { error: 'member_disabled' | 'no_access' }> {
+  const [{ data: roleRow }, { data: profile }, memberLoginEnabled] = await Promise.all([
+    supabase.from('user_roles').select('role').eq('user_id', userId).eq('role', 'admin').maybeSingle(),
+    supabase.from('profiles').select('role').eq('id', userId).maybeSingle(),
+    isMemberLoginEnabled(),
+  ])
+
+  const flightRole = (profile?.role ?? null) as AppRole | null
+  if (!memberLoginEnabled && flightRole === 'member' && !roleRow) {
+    return { error: 'member_disabled' }
+  }
+
+  const destination = landingPath({
+    nextPath,
+    safetyAdmin: Boolean(roleRow),
+    flightRole,
+  })
+
+  if (!destination) return { error: 'no_access' }
+  return { destination }
+}
 
 export const getAdminUser = cache(async () => {
   const supabase = await createClient()

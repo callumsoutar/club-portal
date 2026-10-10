@@ -36,7 +36,7 @@ export function NavUser({
   };
   showProfile?: boolean;
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, setOpenMobile } = useSidebar();
   const fallback = initials(user.name || user.email);
 
   return (
@@ -90,7 +90,12 @@ export function NavUser({
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem asChild>
-                    <Link href="/fly/profile">
+                    <Link
+                      href="/fly/profile"
+                      onClick={() => {
+                        if (isMobile) setOpenMobile(false);
+                      }}
+                    >
                       <CircleUserRoundIcon />
                       Profile & currency
                     </Link>

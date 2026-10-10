@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowUpRight, Plus } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, ChevronRight, Plus } from "lucide-react";
 
 import { AuthorisationCard } from "@/components/flight/authorisation-card";
+import { Button } from "@/components/flight/ui/button";
 import { requireUser } from "@/lib/flight/auth";
 import { getExpiryInfo } from "@/lib/flight/format";
 import { getMyAuthorisations } from "@/lib/flight/queries";
@@ -36,25 +37,36 @@ export default async function DashboardPage() {
         <Link
           href="/fly/profile"
           className={cn(
-            "flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-sm transition-colors",
+            "group flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-sm transition-colors",
             hasExpired
               ? "border-destructive/20 bg-danger-muted text-destructive hover:bg-danger-muted/80"
               : "border-warning/25 bg-warning-muted text-warning-foreground hover:bg-warning-muted/80",
           )}
         >
-          <span className="min-w-0 leading-snug">
-            <span className="font-medium">
-              {warnings.map((w) => w.label).join(" & ")}
+          <span className="flex min-w-0 items-center gap-2.5">
+            <span
+              className={cn(
+                "flex size-7 shrink-0 items-center justify-center rounded-lg",
+                hasExpired ? "bg-destructive/10" : "bg-warning/15",
+              )}
+            >
+              <AlertTriangle className="size-3.5" />
             </span>
-            <span className="opacity-80">
-              {" — "}
-              {warnings.length === 1
-                ? warnings[0]!.info.label
-                : "Update before you fly"}
+            <span className="min-w-0 leading-snug">
+              <span className="font-medium">
+                {warnings.map((w) => w.label).join(" & ")}
+              </span>
+              <span className="opacity-80">
+                {" — "}
+                {warnings.length === 1
+                  ? warnings[0]!.info.label
+                  : "Update before you fly"}
+              </span>
             </span>
           </span>
-          <span className="shrink-0 text-xs font-medium underline decoration-current/30 underline-offset-4">
+          <span className="inline-flex shrink-0 items-center gap-0.5 rounded-md px-1.5 py-1 text-xs font-medium">
             Profile
+            <ChevronRight className="size-3.5 transition-transform group-hover:translate-x-0.5" />
           </span>
         </Link>
       )}
@@ -63,25 +75,24 @@ export default async function DashboardPage() {
         <EmptyDashboard firstName={firstName} />
       ) : (
         <>
-          <header className="flex flex-col gap-4 border-b border-foreground/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h2 className="text-[1.75rem] leading-none font-semibold tracking-[-0.03em]">
                 My flights
               </h2>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-1.5 text-sm text-muted-foreground">
                 {active.length === 0
                   ? `${firstName}, nothing open right now.`
                   : `${active.length} open · ${past.length} past`}
               </p>
             </div>
 
-            <Link
-              href="/authorise"
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              <Plus className="size-4" strokeWidth={2.25} />
-              New authorisation
-            </Link>
+            <Button asChild className="w-full sm:mt-0.5 sm:w-auto">
+              <Link href="/authorise">
+                <Plus data-icon="inline-start" />
+                New authorisation
+              </Link>
+            </Button>
           </header>
 
           <section className="space-y-3">
@@ -105,7 +116,7 @@ export default async function DashboardPage() {
               <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
                 <ul className="divide-y divide-border/70">
                   {active.map((a) => (
-                    <li key={a.id} className="px-4">
+                    <li key={a.id}>
                       <AuthorisationCard
                         authorisation={a}
                         href={`/a/${a.access_token}`}
@@ -131,7 +142,7 @@ export default async function DashboardPage() {
               <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
                 <ul className="divide-y divide-border/70">
                   {past.map((a) => (
-                    <li key={a.id} className="px-4">
+                    <li key={a.id}>
                       <AuthorisationCard
                         authorisation={a}
                         href={`/a/${a.access_token}`}
@@ -166,13 +177,12 @@ function EmptyDashboard({ firstName }: { firstName: string }) {
           Authorise from your phone in about a minute. Your instructor is
           notified as soon as you sign.
         </p>
-        <Link
-          href="/authorise"
-          className="mt-6 inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
-        >
-          Start an authorisation
-          <ArrowUpRight className="size-4" strokeWidth={2.25} />
-        </Link>
+        <Button asChild className="mt-6">
+          <Link href="/authorise">
+            Start an authorisation
+            <ArrowUpRight data-icon="inline-end" />
+          </Link>
+        </Button>
       </section>
     </>
   );

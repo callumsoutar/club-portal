@@ -256,7 +256,7 @@ async function AuthorisationResults({
       <div className="overflow-hidden rounded-lg border bg-card md:hidden">
         <ul className="divide-y">
           {rows.map((a) => (
-            <li key={a.id} className="px-4">
+            <li key={a.id}>
               <AuthorisationCard
                 authorisation={a}
                 href={`/fly/instructor/authorisations/${a.id}`}
