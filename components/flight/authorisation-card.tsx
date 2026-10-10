@@ -48,7 +48,7 @@ export function AuthorisationCard({
     return (
       <Link
         href={href}
-        className="group flex items-center gap-4 py-3.5 transition-colors hover:bg-muted/30"
+        className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-muted/40"
       >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -74,10 +74,12 @@ export function AuthorisationCard({
   return (
     <Link
       href={href}
-      className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 py-3.5 transition-colors hover:bg-muted/30 sm:grid-cols-[8.5rem_minmax(0,1fr)_auto_auto] sm:gap-5"
+      className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3.5 transition-colors hover:bg-muted/40 sm:grid-cols-[minmax(7.5rem,11rem)_minmax(0,1fr)_4.75rem_auto] sm:gap-x-5"
     >
       <div className="min-w-0">
-        <p className="truncate font-mono text-sm font-medium">{registration}</p>
+        <p className="truncate font-mono text-sm font-medium tracking-tight">
+          {registration}
+        </p>
         <p className="truncate text-xs text-muted-foreground">
           {showPilot ? a.pilot_name : (aircraftType ?? "Type not set")}
         </p>
@@ -96,11 +98,11 @@ export function AuthorisationCard({
         ) : null}
       </div>
 
-      <p className="col-span-2 text-sm text-muted-foreground sm:col-span-1 sm:whitespace-nowrap">
+      <p className="col-span-2 text-sm text-muted-foreground tabular-nums sm:col-span-1 sm:text-right sm:whitespace-nowrap">
         {scheduleParts.join(" · ") || "—"}
       </p>
 
-      <div className="row-start-1 justify-self-end sm:row-start-auto">
+      <div className="row-start-1 justify-self-end sm:row-start-auto sm:justify-self-end">
         <StatusBadge status={a.status} size="sm" live />
       </div>
     </Link>

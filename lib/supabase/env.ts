@@ -3,17 +3,18 @@ export type SupabasePublicEnv = {
   publishableKey: string
 }
 
-function readPublicEnv(name: string): string | undefined {
-  const value = process.env[name]
-  if (!value || value.trim().length === 0) {
-    return undefined
-  }
-  return value
+function readLiteral(value: string | undefined): string | undefined {
+  const trimmed = value?.trim()
+  return trimmed ? trimmed : undefined
 }
 
 export function getSupabasePublicEnv(): SupabasePublicEnv | null {
-  const url = readPublicEnv('NEXT_PUBLIC_SUPABASE_URL')
-  const publishableKey = readPublicEnv('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
+  // Next.js only inlines NEXT_PUBLIC_* when the access is a literal
+  // `process.env.NAME`. A dynamic `process.env[name]` is undefined in the browser.
+  const url = readLiteral(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  const publishableKey =
+    readLiteral(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) ??
+    readLiteral(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 
   if (!url || !publishableKey) {
     return null

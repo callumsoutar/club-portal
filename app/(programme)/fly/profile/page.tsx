@@ -9,9 +9,12 @@ export default async function ProfilePage() {
   const aircraft = await getActiveAircraft();
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6 px-4 lg:px-6">
-      <header className="space-y-1">
-        <p className="text-sm text-muted-foreground">
+    <div className="mx-auto w-full max-w-2xl space-y-5 px-4 pb-12 lg:px-6">
+      <header>
+        <h2 className="text-[1.75rem] leading-none font-semibold tracking-[-0.03em]">
+          Profile & currency
+        </h2>
+        <p className="mt-1.5 text-sm text-muted-foreground">
           Keep these up to date and your next authorisation fills itself in.
         </p>
       </header>

@@ -3,9 +3,8 @@
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 
-import { landingPath, safeNextPath } from '@/lib/auth'
-import { isMemberLoginEnabled } from '@/lib/flight/queries'
-import type { AppRole } from '@/lib/flight/types'
+import { resolveSignedInDestination, safeNextPath } from '@/lib/auth'
+import { signInErrorMessage } from '@/lib/sign-in-errors'
 import { createClient } from '@/lib/supabase/server'
 
 const loginSchema = z.object({
@@ -30,28 +29,16 @@ export async function signIn(input: { email: string; password: string; nextPath?
     return { error: 'Email or password is incorrect.' }
   }
 
-  const [{ data: roleRow }, { data: profile }, memberLoginEnabled] = await Promise.all([
-    supabase.from('user_roles').select('role').eq('user_id', data.user.id).eq('role', 'admin').maybeSingle(),
-    supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle(),
-    isMemberLoginEnabled(),
-  ])
+  const result = await resolveSignedInDestination(
+    supabase,
+    data.user.id,
+    safeNextPath(parsed.data.nextPath),
+  )
 
-  const flightRole = (profile?.role ?? null) as AppRole | null
-  if (!memberLoginEnabled && flightRole === 'member' && !roleRow) {
+  if ('error' in result) {
     await supabase.auth.signOut()
-    return { error: 'Member login is turned off. You can still submit a guest authorisation.' }
+    return { error: signInErrorMessage(result.error) }
   }
 
-  const destination = landingPath({
-    nextPath: safeNextPath(parsed.data.nextPath),
-    safetyAdmin: Boolean(roleRow),
-    flightRole,
-  })
-
-  if (!destination) {
-    await supabase.auth.signOut()
-    return { error: 'This account does not have access yet.' }
-  }
-
-  redirect(destination)
+  redirect(result.destination)
 }
