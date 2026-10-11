@@ -13,6 +13,8 @@ interface SubmittedViewProps {
   token?: string;
   signedIn: boolean;
   memberLoginEnabled?: boolean;
+  companyName: string;
+  clubLogoUrl: string | null;
 }
 
 /**
@@ -24,6 +26,8 @@ export function SubmittedView({
   token,
   signedIn,
   memberLoginEnabled = true,
+  companyName,
+  clubLogoUrl,
 }: SubmittedViewProps) {
   return (
     <div className="flex min-h-dvh flex-col bg-background">
@@ -34,7 +38,9 @@ export function SubmittedView({
           animate={{ opacity: 1 }}
           transition={{ duration: 0.25 }}
         >
-          <Logo className="opacity-90" />
+          <Link href="/" aria-label={`${companyName} home`} className="min-w-0">
+            <Logo companyName={companyName} clubLogoUrl={clubLogoUrl} />
+          </Link>
           <span className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
             Submitted
           </span>
@@ -104,7 +110,7 @@ export function SubmittedView({
                 href={signedIn ? "/fly" : "/"}
                 className="text-sm text-muted-foreground underline decoration-border underline-offset-4 transition-colors hover:text-foreground hover:decoration-foreground"
               >
-                {signedIn ? "Back to my flights" : "Done"}
+                {signedIn ? "Go to my flights" : "Back to home"}
               </Link>
             </div>
           </motion.div>

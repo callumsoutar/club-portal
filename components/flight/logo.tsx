@@ -1,26 +1,24 @@
+import { companyInitials } from "@/lib/company-settings";
 import { cn } from "@/lib/flight/utils";
-import { APP_NAME } from "@/lib/flight/constants";
 
 /**
- * Club logo when uploaded, otherwise the FlightAuth mark + wordmark.
- * Club logos are expected to have a transparent background.
+ * Club brand. Uses the uploaded logo from Club settings when there is one,
+ * otherwise an initials mark beside the club name. Club logos are expected
+ * to have a transparent background.
  */
 export function Logo({
+  companyName,
+  clubLogoUrl,
   className,
   showWordmark = true,
-  showMark = true,
-  onDark = false,
-  clubLogoUrl,
   size = "default",
 }: {
-  className?: string;
-  showWordmark?: boolean;
-  /** Icon mark beside the wordmark. */
-  showMark?: boolean;
-  /** White wordmark for the navy sidebar chrome. */
-  onDark?: boolean;
+  companyName: string;
   /** Public URL for the club logo from Settings. */
   clubLogoUrl?: string | null;
+  className?: string;
+  /** Club name beside the initials mark. Ignored when a logo is uploaded. */
+  showWordmark?: boolean;
   size?: "default" | "lg";
 }) {
   if (clubLogoUrl) {
@@ -30,7 +28,7 @@ export function Logo({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={clubLogoUrl}
-          alt={APP_NAME}
+          alt={companyName}
           className={cn(
             "w-auto object-contain object-left",
             size === "lg"
@@ -43,35 +41,33 @@ export function Logo({
   }
 
   return (
-    <span className={cn("inline-flex items-center gap-2.5", className)}>
-      {showMark && (
-        <span className="relative flex size-8 items-center justify-center rounded-[10px] bg-gradient-to-br from-sky-500 to-blue-700 shadow-sm">
-          <svg viewBox="0 0 24 24" className="size-4 text-white" fill="none">
-            <path
-              d="M3.5 14.5 20 5.5l-5.2 13-2.6-5.2-5.2-2.6Z"
-              fill="currentColor"
-              fillOpacity="0.95"
-            />
-            <path
-              d="m12.2 13.3 3.4-3.4"
-              stroke="oklch(0.48 0.16 258)"
-              strokeWidth="1.4"
-              strokeLinecap="round"
-            />
-          </svg>
-        </span>
-      )}
-
+    <span className={cn("inline-flex min-w-0 items-center gap-2.5", className)}>
+      <ClubMark companyName={companyName} />
       {showWordmark && (
-        <span
-          className={cn(
-            "text-[15px] font-semibold tracking-[-0.02em]",
-            onDark ? "text-sidebar-foreground" : "text-foreground",
-          )}
-        >
-          {APP_NAME}
+        <span className="truncate text-[15px] font-semibold tracking-[-0.015em] text-foreground">
+          {companyName}
         </span>
       )}
+    </span>
+  );
+}
+
+export function ClubMark({
+  companyName,
+  className,
+}: {
+  companyName: string;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-[11px] font-semibold tracking-wide text-primary-foreground",
+        className,
+      )}
+    >
+      {companyInitials(companyName)}
     </span>
   );
 }

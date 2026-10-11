@@ -63,12 +63,18 @@ export function landingPath(input: {
   const flightAdmin = flightRole === 'admin'
   const adminNext = nextPath === '/admin' || nextPath?.startsWith('/admin/') || nextPath === '/tv' || nextPath?.startsWith('/tv?')
   const flightNext = nextPath === '/fly' || nextPath?.startsWith('/fly/') || nextPath === '/authorise' || nextPath?.startsWith('/authorise/') || nextPath?.startsWith('/a/')
+  const portalNext = nextPath !== null && isPortalPath(nextPath)
+  const hasAccess = safetyAdmin || flightRole !== null
 
   if (nextPath && adminNext && (safetyAdmin || flightAdmin)) return nextPath
   if (nextPath && flightNext && flightRole) return nextPath
-  if (safetyAdmin) return '/admin'
-  if (flightRole) return '/fly'
+  if (nextPath && portalNext && hasAccess) return nextPath
+  if (hasAccess) return '/'
   return null
+}
+
+function isPortalPath(value: string) {
+  return value === '/' || value === '/safety' || value.startsWith('/safety/') || value.startsWith('/safety?')
 }
 
 export function safeNextPath(value: string | null | undefined) {
@@ -76,6 +82,7 @@ export function safeNextPath(value: string | null | undefined) {
     return null
   }
   const allowed =
+    isPortalPath(value) ||
     value === '/tv' ||
     value.startsWith('/tv?') ||
     value === '/admin' ||

@@ -14,8 +14,8 @@ import {
 import {
   getActivity,
   getAuthorisationByToken,
-  getClubLogoUrl,
 } from "@/lib/flight/queries";
+import { getCompanySettings } from "@/lib/get-company-settings";
 import { cn } from "@/lib/flight/utils";
 import type { AuthorisationStatus } from "@/lib/flight/types";
 
@@ -37,10 +37,10 @@ export default async function GuestAuthorisationPage({
 
   if (!/^[0-9a-f-]{36}$/i.test(token)) notFound();
 
-  const [authorisation, user, clubLogoUrl] = await Promise.all([
+  const [authorisation, user, company] = await Promise.all([
     getAuthorisationByToken(token),
     getSessionUser(),
-    getClubLogoUrl(),
+    getCompanySettings(),
   ]);
   if (!authorisation) notFound();
 
@@ -60,7 +60,9 @@ export default async function GuestAuthorisationPage({
     <div className="flex min-h-dvh flex-col bg-background">
       <header className="sticky top-0 z-10 border-b border-border/70 bg-background/90 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full max-w-lg items-center justify-between gap-3 px-5">
-          <Logo clubLogoUrl={clubLogoUrl} showMark={!clubLogoUrl} />
+          <Link href="/" aria-label={`${company.companyName} home`} className="min-w-0">
+            <Logo companyName={company.companyName} clubLogoUrl={company.logoUrl} />
+          </Link>
           <StatusBadge status={authorisation.status} />
         </div>
       </header>

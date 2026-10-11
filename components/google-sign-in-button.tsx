@@ -8,17 +8,20 @@ import { cn } from '@/lib/utils'
 
 export function GoogleSignInButton({
   nextPath,
-  variant = 'login',
+  label,
+  onBeforeSignIn,
   onError,
 }: {
   nextPath?: string
-  variant?: 'login' | 'flight'
+  label?: string
+  onBeforeSignIn?: () => void
   onError?: (message: string) => void
 }) {
   const [pending, setPending] = useState(false)
 
   async function onClick() {
     setPending(true)
+    onBeforeSignIn?.()
     const supabase = createClient()
     const redirectTo = new URL('/auth/callback', window.location.origin)
     if (nextPath) redirectTo.searchParams.set('next', nextPath)
@@ -34,29 +37,20 @@ export function GoogleSignInButton({
     }
   }
 
-  const label = pending ? 'Redirecting to Google…' : 'Continue with Google'
-
-  if (variant === 'flight') {
-    return (
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        className="h-11 w-full"
-        disabled={pending}
-        onClick={onClick}
-      >
-        <GoogleMark />
-        {label}
-      </Button>
-    )
-  }
+  const buttonLabel = pending ? 'Redirecting to Google…' : (label ?? 'Continue with Google')
 
   return (
-    <button type="button" className="admin-secondary login-google" disabled={pending} onClick={onClick}>
+    <Button
+      type="button"
+      variant="outline"
+      size="lg"
+      className="h-11 w-full"
+      disabled={pending}
+      onClick={onClick}
+    >
       <GoogleMark />
-      {label}
-    </button>
+      {buttonLabel}
+    </Button>
   )
 }
 
@@ -73,8 +67,13 @@ function GoogleMark() {
 
 export function AuthDivider({ className }: { className?: string }) {
   return (
-    <div className={cn('login-divider', className)}>
-      <span>or</span>
+    <div
+      className={cn(
+        'flex items-center gap-3 text-xs font-medium text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border',
+        className,
+      )}
+    >
+      or
     </div>
   )
 }

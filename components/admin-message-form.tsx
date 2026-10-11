@@ -7,7 +7,7 @@ import { ChevronLeft, ImagePlus } from 'lucide-react'
 import { Controller, useFieldArray, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-import { removeSafetyMessageImage, saveSafetyMessage, uploadSafetyMessageImage } from '@/app/(programme)/admin/actions'
+import { removeSafetyMessageImage, saveSafetyMessage, uploadSafetyMessageImage } from '@/app/(portal)/(account)/admin/actions'
 import { MarkdownEditor } from '@/components/markdown-editor'
 import { safetyMessageCategories } from '@/lib/safety-messages'
 import {
@@ -85,7 +85,7 @@ export function AdminMessageForm({
   const imageUrl = form.watch('imageUrl')
   const imageAlt = form.watch('imageAlt')
   const isDirty = form.formState.isDirty
-  const heading = title.trim() || (message ? 'Untitled message' : 'New safety message')
+  const heading = title.trim() || (message ? 'Untitled article' : 'New safety article')
   const busy = pending || uploading
 
   useEffect(() => {
@@ -201,7 +201,7 @@ export function AdminMessageForm({
           <div className="editor-bar-copy">
             <Link className="editor-back" href="/admin">
               <ChevronLeft size={16} aria-hidden="true" />
-              All messages
+              All articles
             </Link>
             <div className="editor-heading">
               <h1>{heading}</h1>
@@ -234,8 +234,8 @@ export function AdminMessageForm({
       <div className="editor-layout">
         <div className="editor-main">
           <EditorCard
-            title="Message"
-            hint="The title, summary, and body members read on the site and the briefing-room TV."
+            title="Article"
+            hint="The title, summary, and body members read in the Safety Hub and on the briefing-room TV."
           >
             <label>
               Title

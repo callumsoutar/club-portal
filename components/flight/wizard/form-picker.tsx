@@ -1,99 +1,99 @@
 import Link from "next/link";
 import { ArrowRight, MapPinned, Route } from "lucide-react";
 
+import { SaveDetailsPrompt } from "@/components/flight/save-details-prompt";
 import type { FormTemplate } from "@/lib/flight/types";
-import { cn } from "@/lib/utils";
 
 type PublishedTemplate = Omit<FormTemplate, "sections">;
 
-function formVisual(name: string) {
+function formIcon(name: string) {
   const lower = name.toLowerCase();
-  if (lower.includes("cross") || lower.includes("xc")) {
-    return {
-      icon: Route,
-      accent: "bg-sky-500/10 text-sky-700 group-hover:bg-sky-600 group-hover:text-white",
-    };
-  }
-  return {
-    icon: MapPinned,
-    accent:
-      "bg-primary/10 text-primary group-hover:bg-primary group-hover:text-primary-foreground",
-  };
+  return lower.includes("cross") || lower.includes("xc") ? Route : MapPinned;
 }
 
+const STEPS = [
+  {
+    title: "Choose the form for your flight",
+    body: "Each form asks only what's relevant to that type of flight.",
+  },
+  {
+    title: "Work through each section",
+    body: "Required fields are checked as you go, and your progress is saved on this device if you get interrupted.",
+  },
+  {
+    title: "Sign and submit",
+    body: "Your answers and signature are sent to an instructor for review. You get a reference and a link to track the decision.",
+  },
+];
+
 /**
- * When more than one form is published, pilots pick which authorisation to start.
+ * Pilots pick which authorisation to start when more than one form is
+ * published. Rendered inside the portal shell; the form itself is full screen.
  */
 export function FormPicker({
   templates,
-  cancelHref,
+  offerAccount = false,
 }: {
   templates: PublishedTemplate[];
-  cancelHref: string;
+  /** Guests can create an account before they pick a form. */
+  offerAccount?: boolean;
 }) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col px-5 py-12 sm:py-16">
-      <header className="mb-10 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Authorise a flight
-        </h1>
-        <p className="mt-3 text-base text-muted-foreground">
-          Choose the form that matches your planned flight.
-        </p>
-      </header>
-
-      <div className="grid gap-4 sm:grid-cols-2">
+    <>
+      <ul aria-label="Authorisation forms" className="grid gap-4 sm:grid-cols-2">
         {templates.map((template) => {
-          const visual = formVisual(template.name);
-          const Icon = visual.icon;
-
+          const Icon = formIcon(template.name);
+          const name = template.name.replace(/ Flight Authorisation$/i, "");
           return (
-            <Link
-              key={template.id}
-              href={`/authorise/${template.id}`}
-              className="group relative flex flex-col gap-5 rounded-2xl border bg-card p-6 shadow-xs transition-all hover:border-primary/40 hover:shadow-sm"
-            >
-              <div
-                className={cn(
-                  "flex size-14 shrink-0 items-center justify-center rounded-2xl transition-colors",
-                  visual.accent,
-                )}
+            <li key={template.id} className="flex">
+              <Link
+                href={`/authorise/${template.id}`}
+                className="group flex w-full flex-col rounded-xl border bg-card p-5 transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-px hover:border-primary/40 hover:shadow-soft focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:p-6"
               >
-                <Icon className="size-7" strokeWidth={1.75} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold text-foreground">
-                  {template.name.replace(/ Flight Authorisation$/i, "")}
-                </h2>
-                {template.description ? (
-                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                    {template.description}
-                  </p>
-                ) : (
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Version {template.version}
-                  </p>
-                )}
-              </div>
-
-              <div className="mt-auto flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors group-hover:text-primary">
-                Continue
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </div>
-            </Link>
+                <span className="flex size-11 items-center justify-center rounded-lg bg-primary/8 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                  <Icon className="size-5" strokeWidth={1.75} aria-hidden />
+                </span>
+                <span className="mt-5 block text-lg font-semibold tracking-[-0.015em] text-foreground">
+                  {name}
+                </span>
+                <span className="mt-1 block flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {template.description || template.name}
+                </span>
+                <span className="mt-6 inline-flex items-center gap-1.5 text-sm font-medium text-primary">
+                  Start {name.toLowerCase()} authorisation
+                  <ArrowRight
+                    className="size-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                    aria-hidden
+                  />
+                </span>
+              </Link>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <div className="mt-10 text-center">
-        <Link
-          href={cancelHref}
-          className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          Cancel and return
-        </Link>
-      </div>
-    </div>
+      {offerAccount ? <SaveDetailsPrompt nextPath="/authorise" /> : null}
+
+      <section aria-labelledby="how-it-works" className="border-t pt-8">
+        <h2 id="how-it-works" className="text-sm font-semibold text-foreground">
+          How it works
+        </h2>
+        <ol className="mt-4 grid gap-6 sm:grid-cols-3 sm:gap-8">
+          {STEPS.map((step, index) => (
+            <li key={step.title} className="flex gap-3">
+              <span className="w-4 shrink-0 text-sm font-medium text-muted-foreground tabular-nums">
+                {index + 1}
+              </span>
+              <span className="min-w-0 space-y-1">
+                <span className="block text-sm font-medium text-foreground">{step.title}</span>
+                <span className="block text-sm leading-relaxed text-muted-foreground">
+                  {step.body}
+                </span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
+    </>
   );
 }

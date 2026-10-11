@@ -28,6 +28,8 @@ export type SafetyMessage = {
   emphasis?: string
   category: string
   date: string
+  /** ISO `YYYY-MM-DD`, or null when the article has no publish date. */
+  publishedOn: string | null
   read: string
   description: string
   /** Short line written to be read from across the briefing room. */
@@ -71,6 +73,50 @@ export function categoryClass(category: string) {
   return category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+/** URL-safe category key, e.g. `Airspace & Radio` → `airspace-radio`. */
+export const categorySlug = categoryClass
+
+export function categoryFromSlug(slug: string | null | undefined) {
+  if (!slug) return null
+  return safetyMessageCategories.find((category) => categorySlug(category) === slug) ?? null
+}
+
+export function safetyArticleHref(slug: string) {
+  return `/safety/${slug}`
+}
+
+export function safetyCategoryHref(category: string) {
+  return `/safety?category=${categorySlug(category)}`
+}
+
+/** List-view fields only, so index pages don't ship every article body. */
+export type SafetyArticleSummary = Pick<
+  SafetyMessage,
+  | 'slug'
+  | 'title'
+  | 'category'
+  | 'date'
+  | 'publishedOn'
+  | 'read'
+  | 'description'
+  | 'imageUrl'
+  | 'imageAlt'
+>
+
+export function toArticleSummary(message: SafetyMessage): SafetyArticleSummary {
+  return {
+    slug: message.slug,
+    title: message.title,
+    category: message.category,
+    date: message.date,
+    publishedOn: message.publishedOn,
+    read: message.read,
+    description: message.description,
+    imageUrl: message.imageUrl,
+    imageAlt: message.imageAlt,
+  }
+}
+
 export function mapSafetyMessage(row: SafetyMessageRow): SafetyMessage {
   const imageUrl = heroImageUrl(row.image_url)
 
@@ -81,6 +127,7 @@ export function mapSafetyMessage(row: SafetyMessageRow): SafetyMessage {
     title: row.title,
     category: row.category,
     date: row.published_date ? formatPublishedDate(row.published_date) : '',
+    publishedOn: row.published_date,
     read: readingTime(row.body_markdown),
     description: row.summary,
     briefing: row.summary,

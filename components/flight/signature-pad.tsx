@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -17,111 +17,218 @@ interface SignaturePadProps {
 /**
  * Touch signature pad.
  *
- * Built on pointer events rather than separate mouse/touch handlers so a
- * finger, a stylus and a trackpad all take the same code path. The canvas is
- * backed at device pixel ratio, otherwise signatures look soft on phones —
- * which is exactly where every one of these will be captured.
+ * iOS Safari will claim a finger for scrolling after a few pixels when the
+ * canvas lives in an overflow scroller (the authorisation form does). Once it
+ * does, it fires pointercancel and the stroke dies. `touch-action: none` has
+ * to be a real style — and touchmove has to be cancelled from a non-passive
+ * listener, because React's own touch listeners are passive and cannot call
+ * preventDefault. Pointer moves are followed on window so the stroke continues
+ * if the finger slides off the canvas.
  */
 export function SignaturePad({ value, onChange, className, disabled }: SignaturePadProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
+  const activePointer = useRef<number | null>(null);
   const lastPoint = useRef<{ x: number; y: number } | null>(null);
+  const hasInkRef = useRef(Boolean(value));
+  const valueRef = useRef(value);
+  const onChangeRef = useRef(onChange);
+  const disabledRef = useRef(Boolean(disabled));
+  const resizePending = useRef(false);
   const [hasInk, setHasInk] = useState(Boolean(value));
+
+  // Declared before the other effects so the native listeners always see the latest props.
+  useLayoutEffect(() => {
+    valueRef.current = value;
+    onChangeRef.current = onChange;
+    disabledRef.current = Boolean(disabled);
+  });
 
   const setupCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (drawing.current) {
+      resizePending.current = true;
+      return;
+    }
 
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
     const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0) return;
+    if (rect.width === 0 || rect.height === 0) return;
 
-    canvas.width = rect.width * ratio;
-    canvas.height = rect.height * ratio;
+    const nextWidth = Math.max(1, Math.round(rect.width * ratio));
+    const nextHeight = Math.max(1, Math.round(rect.height * ratio));
+    const sizeChanged = canvas.width !== nextWidth || canvas.height !== nextHeight;
+    const snapshot = sizeChanged && hasInkRef.current ? canvas.toDataURL("image/png") : null;
+
+    if (sizeChanged) {
+      canvas.width = nextWidth;
+      canvas.height = nextHeight;
+    }
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.scale(ratio, ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = 2.4;
-    // Read the ink colour from the computed text colour.
-    ctx.strokeStyle = getComputedStyle(canvas).getPropertyValue("color") || "#111";
+    ctx.strokeStyle = getComputedStyle(canvas).color || "#111";
 
-    // Restore an existing signature (e.g. navigating back a step).
-    if (value?.startsWith("data:image/")) {
-      const img = new Image();
-      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
-      img.src = value;
-    } else {
-      // White fill so JPEG exports stay readable (PNG was transparent).
+    const paintWhite = () => {
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, rect.width, rect.height);
-      ctx.fillStyle = ctx.strokeStyle;
-    }
-  }, [value]);
-
-  useEffect(() => {
-    setupCanvas();
-
-    // Re-back the canvas on rotate/resize, which otherwise stretches the ink.
-    const observer = new ResizeObserver(() => setupCanvas());
-    if (canvasRef.current) observer.observe(canvasRef.current);
-    return () => observer.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  function pointFrom(event: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }
-
-  function handleDown(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (disabled) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
-    drawing.current = true;
-    lastPoint.current = pointFrom(event);
-  }
-
-  function handleMove(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (!drawing.current || disabled) return;
-
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx || !lastPoint.current) return;
-
-    const point = pointFrom(event);
-
-    // Midpoint quadratic smoothing — without it, fast finger strokes render as
-    // visible polygons.
-    const mid = {
-      x: (lastPoint.current.x + point.x) / 2,
-      y: (lastPoint.current.y + point.y) / 2,
     };
 
-    ctx.beginPath();
-    ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
-    ctx.quadraticCurveTo(lastPoint.current.x, lastPoint.current.y, mid.x, mid.y);
-    ctx.stroke();
+    if (snapshot) {
+      paintWhite();
+      const img = new Image();
+      img.onload = () => {
+        const live = canvas.getContext("2d");
+        if (!live) return;
+        live.drawImage(img, 0, 0, rect.width, rect.height);
+      };
+      img.src = snapshot;
+      return;
+    }
 
-    lastPoint.current = point;
-    if (!hasInk) setHasInk(true);
-  }
+    if (!sizeChanged && hasInkRef.current) return;
 
-  function handleUp() {
-    if (!drawing.current) return;
-    drawing.current = false;
-    lastPoint.current = null;
-    commit();
-  }
+    paintWhite();
 
-  function commit() {
+    const stored = valueRef.current;
+    if (stored?.startsWith("data:image/")) {
+      const img = new Image();
+      img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      img.src = stored;
+    }
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // JPEG keeps the server-action payload small — PNG signatures were multi-MB
-    // on retina phones and made submit feel stuck in production.
-    onChange(canvas.toDataURL("image/jpeg", 0.72));
-  }
+
+    setupCanvas();
+
+    const observer = new ResizeObserver(() => setupCanvas());
+    observer.observe(canvas);
+
+    const blockScroll = (event: TouchEvent) => {
+      if (disabledRef.current) return;
+      if (event.cancelable) event.preventDefault();
+    };
+
+    const pointFrom = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    };
+
+    const commit = () => {
+      if (!hasInkRef.current) return;
+      onChangeRef.current(canvas.toDataURL("image/jpeg", 0.72));
+    };
+
+    const endStroke = () => {
+      if (!drawing.current) return;
+      drawing.current = false;
+      activePointer.current = null;
+      lastPoint.current = null;
+      commit();
+      if (resizePending.current) {
+        resizePending.current = false;
+        setupCanvas();
+      }
+    };
+
+    const drawTo = (event: PointerEvent) => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx || !lastPoint.current) return;
+
+      let samples: PointerEvent[] = [];
+      try {
+        samples = typeof event.getCoalescedEvents === "function" ? event.getCoalescedEvents() : [];
+      } catch {
+        samples = [];
+      }
+      const points = samples.length > 0 ? samples : [event];
+
+      for (const sample of points) {
+        if (!lastPoint.current) break;
+        const point = pointFrom(sample);
+        const mid = {
+          x: (lastPoint.current.x + point.x) / 2,
+          y: (lastPoint.current.y + point.y) / 2,
+        };
+
+        ctx.beginPath();
+        ctx.moveTo(lastPoint.current.x, lastPoint.current.y);
+        ctx.quadraticCurveTo(lastPoint.current.x, lastPoint.current.y, mid.x, mid.y);
+        ctx.stroke();
+        lastPoint.current = point;
+      }
+
+      if (!hasInkRef.current) {
+        hasInkRef.current = true;
+        setHasInk(true);
+      }
+    };
+
+    const handleDown = (event: PointerEvent) => {
+      if (disabledRef.current) return;
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+
+      drawing.current = true;
+      activePointer.current = event.pointerId;
+      lastPoint.current = pointFrom(event);
+
+      try {
+        canvas.setPointerCapture(event.pointerId);
+      } catch {
+        // Capture is a hint. Window listeners still follow the finger on iOS
+        // when Safari refuses or drops capture inside a scroll container.
+      }
+    };
+
+    const handleMove = (event: PointerEvent) => {
+      if (!drawing.current || disabledRef.current || event.pointerId !== activePointer.current) {
+        return;
+      }
+      drawTo(event);
+    };
+
+    const handleUp = (event: PointerEvent) => {
+      if (event.pointerId !== activePointer.current) return;
+      if (canvas.hasPointerCapture(event.pointerId)) {
+        try {
+          canvas.releasePointerCapture(event.pointerId);
+        } catch {
+          // Pointer already released.
+        }
+      }
+      endStroke();
+    };
+
+    const blockContextMenu = (event: Event) => event.preventDefault();
+
+    canvas.addEventListener("touchstart", blockScroll, { passive: false });
+    canvas.addEventListener("touchmove", blockScroll, { passive: false });
+    canvas.addEventListener("pointerdown", handleDown);
+    canvas.addEventListener("contextmenu", blockContextMenu);
+    window.addEventListener("pointermove", handleMove, true);
+    window.addEventListener("pointerup", handleUp, true);
+    window.addEventListener("pointercancel", handleUp, true);
+
+    return () => {
+      observer.disconnect();
+      canvas.removeEventListener("touchstart", blockScroll);
+      canvas.removeEventListener("touchmove", blockScroll);
+      canvas.removeEventListener("pointerdown", handleDown);
+      canvas.removeEventListener("contextmenu", blockContextMenu);
+      window.removeEventListener("pointermove", handleMove, true);
+      window.removeEventListener("pointerup", handleUp, true);
+      window.removeEventListener("pointercancel", handleUp, true);
+    };
+  }, [setupCanvas]);
 
   function clear() {
     const canvas = canvasRef.current;
@@ -131,6 +238,10 @@ export function SignaturePad({ value, onChange, className, disabled }: Signature
     const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
+    drawing.current = false;
+    activePointer.current = null;
+    lastPoint.current = null;
+    hasInkRef.current = false;
     setHasInk(false);
     onChange("");
   }
@@ -139,24 +250,19 @@ export function SignaturePad({ value, onChange, className, disabled }: Signature
     <div className={cn("space-y-3", className)}>
       <div
         className={cn(
-          "relative overflow-hidden rounded-xl border-2 border-dashed transition-colors",
+          "relative overflow-clip rounded-xl border-2 border-dashed touch-none transition-colors",
           hasInk ? "border-foreground/30 bg-background" : "border-border bg-background",
           disabled && "opacity-60",
         )}
       >
         <canvas
           ref={canvasRef}
-          onPointerDown={handleDown}
-          onPointerMove={handleMove}
-          onPointerUp={handleUp}
-          onPointerLeave={handleUp}
-          onPointerCancel={handleUp}
-          className="touch-none-safe block h-44 w-full cursor-crosshair text-foreground sm:h-52"
+          className="block h-44 w-full cursor-crosshair touch-none text-foreground select-none sm:h-52"
+          style={{ touchAction: "none", WebkitTouchCallout: "none" }}
           aria-label="Signature pad"
           role="img"
         />
 
-        {/* Baseline and prompt sit behind the ink and never intercept pointers. */}
         {!hasInk && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1">
             <span className="text-sm text-muted-foreground">Sign here with your finger</span>

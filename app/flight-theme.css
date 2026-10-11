@@ -1,8 +1,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-heading: Arial, Helvetica, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-heading: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -54,22 +55,27 @@
   --shadow-float: 0 2px 4px oklch(0.2 0.03 250 / 0.04), 0 16px 40px -8px oklch(0.2 0.03 250 / 0.14);
 }
 
+/*
+  Portal palette. Neutral surfaces with one brand blue; colour is reserved for
+  actions, status and the active nav item. Sidebar sits one step darker than
+  the workspace rather than inverting, so the shell reads as one surface.
+*/
 :root {
-  --radius: 0.75rem;
-  --background: oklch(0.97 0.004 255);
-  --foreground: oklch(0.18 0.02 255);
+  --radius: 0.625rem;
+  --background: oklch(0.993 0.002 255);
+  --foreground: oklch(0.2 0.015 255);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.02 255);
+  --card-foreground: oklch(0.2 0.015 255);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.02 255);
-  --primary: oklch(0.48 0.16 258);
+  --popover-foreground: oklch(0.2 0.015 255);
+  --primary: oklch(0.46 0.15 258);
   --primary-foreground: oklch(0.99 0.005 250);
-  --secondary: oklch(0.955 0.006 255);
+  --secondary: oklch(0.96 0.005 255);
   --secondary-foreground: oklch(0.28 0.02 255);
-  --muted: oklch(0.955 0.006 255);
-  --muted-foreground: oklch(0.5 0.02 255);
-  --accent: oklch(0.945 0.01 255);
-  --accent-foreground: oklch(0.28 0.03 258);
+  --muted: oklch(0.965 0.004 255);
+  --muted-foreground: oklch(0.49 0.018 255);
+  --accent: oklch(0.955 0.008 255);
+  --accent-foreground: oklch(0.24 0.03 258);
   --destructive: oklch(0.577 0.222 27);
   --danger-muted: oklch(0.962 0.028 25);
   --success: oklch(0.62 0.15 155);
@@ -81,22 +87,22 @@
   --info: oklch(0.58 0.14 245);
   --info-foreground: oklch(0.99 0.005 245);
   --info-muted: oklch(0.958 0.028 245);
-  --border: oklch(0.9 0.008 255);
-  --input: oklch(0.9 0.008 255);
-  --ring: oklch(0.48 0.16 258);
-  --chart-1: oklch(0.48 0.16 258);
+  --border: oklch(0.915 0.006 255);
+  --input: oklch(0.89 0.008 255);
+  --ring: oklch(0.46 0.15 258);
+  --chart-1: oklch(0.46 0.15 258);
   --chart-2: oklch(0.62 0.15 155);
   --chart-3: oklch(0.72 0.16 68);
   --chart-4: oklch(0.58 0.18 300);
   --chart-5: oklch(0.62 0.19 25);
-  --sidebar: oklch(0.17 0.025 255);
-  --sidebar-foreground: oklch(0.9 0.01 250);
-  --sidebar-primary: oklch(0.72 0.01 255);
-  --sidebar-primary-foreground: oklch(0.18 0.02 255);
-  --sidebar-accent: oklch(1 0 0 / 9%);
-  --sidebar-accent-foreground: oklch(0.98 0.005 250);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.65 0.01 255);
+  --sidebar: oklch(0.975 0.003 255);
+  --sidebar-foreground: oklch(0.3 0.015 255);
+  --sidebar-primary: oklch(0.46 0.15 258);
+  --sidebar-primary-foreground: oklch(0.99 0.005 250);
+  --sidebar-accent: oklch(0.93 0.008 255);
+  --sidebar-accent-foreground: oklch(0.18 0.02 255);
+  --sidebar-border: oklch(0.915 0.006 255);
+  --sidebar-ring: oklch(0.46 0.15 258);
 }
 
 @utility shadow-soft {

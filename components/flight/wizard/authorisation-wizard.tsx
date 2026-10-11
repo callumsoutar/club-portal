@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { SaveDetailsPrompt } from "@/components/flight/save-details-prompt";
 import { Button } from "@/components/flight/ui/button";
 import { Logo } from "@/components/flight/logo";
 import { FieldRenderer } from "@/components/flight/wizard/field-renderer";
@@ -32,7 +33,7 @@ import { ProgressRail } from "@/components/flight/wizard/progress-rail";
 import { ReviewStep } from "@/components/flight/wizard/review-step";
 import { useAutosaveDraft } from "@/hooks/use-autosave-draft";
 import { submitAuthorisation } from "@/lib/flight/actions/authorisations";
-import { APP_NAME } from "@/lib/flight/constants";
+import { draftStorageKey } from "@/lib/flight/constants";
 import {
   buildDefaultValues,
   buildSectionSchema,
@@ -59,8 +60,11 @@ interface WizardProps {
   /** Known values for a signed-in member — this is the 30-second path. */
   prefill?: AnswerMap;
   cancelHref: string;
+  companyName: string;
   /** Public club logo URL from Settings. */
   clubLogoUrl?: string | null;
+  /** Guests on the personal-details step can save those details for next time. */
+  offerAccount?: boolean;
 }
 
 export function AuthorisationWizard({
@@ -68,7 +72,9 @@ export function AuthorisationWizard({
   sources,
   prefill,
   cancelHref,
+  companyName,
   clubLogoUrl,
+  offerAccount = false,
 }: WizardProps) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -252,19 +258,15 @@ export function AuthorisationWizard({
       <header className="pt-safe shrink-0 border-b bg-card">
         <div className="mx-auto flex h-12 w-full max-w-2xl items-center justify-between gap-3 px-4 sm:h-14 sm:px-6">
           <span className="flex min-w-0 shrink items-center">
-            {clubLogoUrl ? (
-              <Logo
-                clubLogoUrl={clubLogoUrl}
-                className="[&_img]:h-7 sm:[&_img]:h-8"
-              />
-            ) : (
-              <span className="truncate text-xs font-medium text-muted-foreground sm:text-sm">
-                {APP_NAME}
-              </span>
-            )}
+            <Logo
+              companyName={companyName}
+              clubLogoUrl={clubLogoUrl}
+              showWordmark={false}
+              className="[&_img]:h-7 sm:[&_img]:h-8"
+            />
           </span>
           <span className="truncate text-sm font-semibold tracking-tight">
-            Flight authorisation
+            {template.name}
           </span>
           <Button
             asChild
@@ -378,6 +380,29 @@ export function AuthorisationWizard({
                         ) : undefined
                       }
                     />
+
+                    {offerAccount && step === 0 ? (
+                      <div className="mb-4">
+                        <SaveDetailsPrompt
+                          nextPath={`/authorise/${template.id}`}
+                          onBeforeSignIn={() => {
+                            try {
+                              localStorage.setItem(
+                                draftStorageKey(template.id),
+                                JSON.stringify({
+                                  answers: getValues(),
+                                  step,
+                                  savedAt: Date.now(),
+                                  templateId: template.id,
+                                }),
+                              );
+                            } catch {
+                              // Private browsing can refuse storage. Sign-in still proceeds.
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : null}
 
                     {isChecklistSection && (
                       <div className="mb-4 space-y-2">

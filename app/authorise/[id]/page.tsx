@@ -9,10 +9,11 @@ import { getSessionUser } from "@/lib/flight/auth";
 import {
   getActiveAircraft,
   getActiveInstructors,
-  getClubLogoUrl,
   getPublishedTemplateById,
   getPublishedTemplates,
+  isMemberLoginEnabled,
 } from "@/lib/flight/queries";
+import { getCompanySettings } from "@/lib/get-company-settings";
 
 type Params = Promise<{ id: string }>;
 
@@ -31,19 +32,19 @@ export default async function AuthoriseFormPage({
 }) {
   const { id } = await params;
 
-  const [template, aircraft, instructors, user, clubLogoUrl, published] =
+  const [template, aircraft, instructors, user, company, published, memberLoginEnabled] =
     await Promise.all([
       getPublishedTemplateById(id),
       getActiveAircraft(),
       getActiveInstructors(),
       getSessionUser(),
-      getClubLogoUrl(),
+      getCompanySettings(),
       getPublishedTemplates(),
+      isMemberLoginEnabled(),
     ]);
 
-  const homeHref = user ? "/fly" : "/";
   // With multiple published forms, cancel returns to the picker.
-  const cancelHref = published.length > 1 ? "/authorise" : homeHref;
+  const cancelHref = published.length > 1 ? "/authorise" : "/";
 
   if (!template) {
     return (
@@ -60,11 +61,11 @@ export default async function AuthoriseFormPage({
           className="w-full"
         />
         <Link
-          href={homeHref}
+          href="/"
           className="inline-flex items-center justify-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" />
-          Back
+          Back to home
         </Link>
       </div>
     );
@@ -76,7 +77,9 @@ export default async function AuthoriseFormPage({
       sources={{ aircraft, instructors }}
       prefill={buildAuthorisationPrefill(user)}
       cancelHref={cancelHref}
-      clubLogoUrl={clubLogoUrl}
+      companyName={company.companyName}
+      clubLogoUrl={company.logoUrl}
+      offerAccount={!user && memberLoginEnabled}
     />
   );
 }

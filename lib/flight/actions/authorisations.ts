@@ -251,6 +251,8 @@ export async function submitAuthorisation(
       }),
     ]);
 
+    if (user) await rememberPilotDetails(user.id, values);
+
     revalidatePath("/fly/instructor");
     revalidatePath("/fly");
   });
@@ -631,6 +633,50 @@ async function archiveRecord(
 function asString(value: unknown): string | null {
   if (typeof value === "string" && value.trim() !== "") return value;
   return null;
+}
+
+const LICENCE_TYPES = new Set<LicenceType>([
+  "student",
+  "rpl",
+  "ppl",
+  "cpl",
+  "atpl",
+  "instructor",
+]);
+
+/** Keep the signed-in pilot's profile in step with the form they just sent. */
+async function rememberPilotDetails(userId: string, values: AnswerMap) {
+  const supabase = createServiceSupabase();
+  const fullName = asString(values.pilot_name);
+  const phone = asString(values.pilot_phone);
+  const licence = asString(values.licence_type);
+  const bfr = asString(values.bfr_expiry);
+  const medical = asString(values.medical_expiry);
+  const aircraftId = asString(values.aircraft_id);
+  const date = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (fullName || phone) {
+    await supabase
+      .from("profiles")
+      .update({
+        ...(fullName ? { full_name: fullName } : {}),
+        ...(phone ? { phone } : {}),
+      })
+      .eq("id", userId);
+  }
+
+  await supabase.from("pilot_profiles").upsert(
+    {
+      profile_id: userId,
+      ...(licence && LICENCE_TYPES.has(licence as LicenceType)
+        ? { licence_type: licence as LicenceType }
+        : {}),
+      ...(bfr && date.test(bfr) ? { bfr_expiry: bfr } : {}),
+      ...(medical && date.test(medical) ? { medical_expiry: medical } : {}),
+      ...(aircraftId ? { preferred_aircraft_id: aircraftId } : {}),
+    },
+    { onConflict: "profile_id" },
+  );
 }
 
 function normaliseEmail(value: string | null | undefined): string | null {

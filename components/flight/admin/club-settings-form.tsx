@@ -6,7 +6,7 @@ import { useForm } from "react-hook-form";
 import { ImageIcon, Loader2, Mail, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 
-import { updateCompanySettings } from "@/app/(programme)/admin/settings/actions";
+import { updateCompanySettings } from "@/app/(portal)/(account)/admin/settings/actions";
 import { Button } from "@/components/flight/ui/button";
 import { Input } from "@/components/flight/ui/input";
 import { Label } from "@/components/flight/ui/label";
@@ -233,7 +233,7 @@ export function ClubSettingsForm({
               Send email notifications
             </Label>
             <p className="text-xs text-muted-foreground">
-              Turn this off to pause all outbound FlightAuth email.
+              Turn this off to pause all outbound email from the portal.
             </p>
           </div>
           <Switch
