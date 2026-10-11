@@ -11,21 +11,6 @@ function formIcon(name: string) {
   return lower.includes("cross") || lower.includes("xc") ? Route : MapPinned;
 }
 
-const STEPS = [
-  {
-    title: "Choose the form for your flight",
-    body: "Each form asks only what's relevant to that type of flight.",
-  },
-  {
-    title: "Work through each section",
-    body: "Required fields are checked as you go, and your progress is saved on this device if you get interrupted.",
-  },
-  {
-    title: "Sign and submit",
-    body: "Your answers and signature are sent to an instructor for review. You get a reference and a link to track the decision.",
-  },
-];
-
 /**
  * Pilots pick which authorisation to start when more than one form is
  * published. Rendered inside the portal shell; the form itself is full screen.
@@ -73,27 +58,6 @@ export function FormPicker({
       </ul>
 
       {offerAccount ? <SaveDetailsPrompt nextPath="/authorise" /> : null}
-
-      <section aria-labelledby="how-it-works" className="border-t pt-8">
-        <h2 id="how-it-works" className="text-sm font-semibold text-foreground">
-          How it works
-        </h2>
-        <ol className="mt-4 grid gap-6 sm:grid-cols-3 sm:gap-8">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="flex gap-3">
-              <span className="w-4 shrink-0 text-sm font-medium text-muted-foreground tabular-nums">
-                {index + 1}
-              </span>
-              <span className="min-w-0 space-y-1">
-                <span className="block text-sm font-medium text-foreground">{step.title}</span>
-                <span className="block text-sm leading-relaxed text-muted-foreground">
-                  {step.body}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </section>
     </>
   );
 }
