@@ -164,7 +164,7 @@ export function renderEmail(
         heading: "You're cleared to fly",
         body: [
           `${payload.instructorName ?? "Your instructor"} has approved your authorisation for ${payload.aircraft ?? "your aircraft"}.`,
-          "Have a good flight. Remember to close out when you're back on the ground.",
+          "Have a good flight.",
         ],
         details: compactDetails([
           { label: "Reference", value: payload.reference },

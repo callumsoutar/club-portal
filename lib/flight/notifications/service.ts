@@ -304,6 +304,17 @@ interface Transport {
 
 let cached: Transport | null = null;
 
+/**
+ * Mail clients show the address when From is a bare email. A display name
+ * makes the inbox read "Flight Auth". An env value that already has
+ * `Name <email>` is left as-is.
+ */
+function senderAddress(from: string) {
+  const value = from.trim();
+  if (value.includes("<")) return value;
+  return `Flight Auth <${value.replace(/^["']|["']$/g, "")}>`;
+}
+
 function getTransport(): Transport {
   if (cached) return cached;
 
@@ -326,7 +337,7 @@ function getTransport(): Transport {
       const resend = new Resend(apiKey);
 
       const { data, error } = await resend.emails.send(
-        { from, to, subject, html },
+        { from: senderAddress(from), to, subject, html },
         idempotencyKey ? { idempotencyKey } : undefined,
       );
       if (error) throw new Error(error.message);

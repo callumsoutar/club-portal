@@ -70,6 +70,16 @@ export const safetyMessageSaveSchema = safetyMessageFormSchema.safeExtend({
 export type SafetyMessageFormValues = z.infer<typeof safetyMessageFormSchema>
 export type SafetyMessageSaveInput = z.infer<typeof safetyMessageSaveSchema>
 
+/** Accept a pasted domain or http address and store it as https. */
+export function normaliseHttps(raw: string) {
+  const value = raw.trim()
+  if (!value) return ''
+  if (/^https:\/\//i.test(value)) return value
+  if (/^http:\/\//i.test(value)) return `https://${value.slice('http://'.length)}`
+  if (value.startsWith('//')) return `https:${value}`
+  return `https://${value.replace(/^\/+/, '')}`
+}
+
 export function slugifyTitle(title: string) {
   return title
     .toLowerCase()

@@ -5,6 +5,7 @@ import { useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode }
 import { Bold, Heading3, Italic, Link2, List, ListOrdered, Quote } from 'lucide-react'
 
 import { htmlToMarkdown, markdownToHtml } from '@/lib/safety-message-markdown'
+import { normaliseHttps } from '@/lib/safety-message-schema'
 
 type MarkdownEditorProps = {
   id: string
@@ -19,6 +20,7 @@ type MarkdownEditorProps = {
 export function MarkdownEditor({ id, name, value, error, onChange, onBlur, inputRef }: MarkdownEditorProps) {
   const [mode, setMode] = useState<'write' | 'source'>('write')
   const [linkDraft, setLinkDraft] = useState<string | null>(null)
+  const [linkError, setLinkError] = useState<string | null>(null)
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const selectionRef = useRef<{ start: number; end: number } | null>(null)
@@ -236,12 +238,16 @@ export function MarkdownEditor({ id, name, value, error, onChange, onBlur, input
 
     const selection = window.getSelection()
     linkRangeRef.current = selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null
-    setLinkDraft('https://')
+    setLinkError(null)
+    setLinkDraft('')
   }
 
   function applyLink() {
-    const url = linkDraft?.trim() ?? ''
-    if (!/^https:\/\/\S+$/.test(url)) return
+    const url = normaliseHttps(linkDraft ?? '')
+    if (!/^https:\/\/\S+$/.test(url)) {
+      setLinkError('Use a web address, such as caa.govt.nz/…')
+      return
+    }
     const surface = surfaceRef.current
     const range = linkRangeRef.current
     if (!surface || !range) return
@@ -249,8 +255,20 @@ export function MarkdownEditor({ id, name, value, error, onChange, onBlur, input
     const selection = window.getSelection()
     selection?.removeAllRanges()
     selection?.addRange(range)
-    document.execCommand('createLink', false, url)
+    if (range.collapsed) {
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.textContent = linkLabel(url)
+      range.insertNode(anchor)
+      range.setStartAfter(anchor)
+      range.collapse(true)
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    } else {
+      document.execCommand('createLink', false, url)
+    }
     setLinkDraft(null)
+    setLinkError(null)
     linkRangeRef.current = null
     publishSurface()
   }
@@ -307,6 +325,7 @@ export function MarkdownEditor({ id, name, value, error, onChange, onBlur, input
             aria-controls={`${id}-write`}
             onClick={() => {
               setLinkDraft(null)
+              setLinkError(null)
               setMode('write')
             }}
           >
@@ -320,6 +339,7 @@ export function MarkdownEditor({ id, name, value, error, onChange, onBlur, input
             aria-controls={`${id}-source`}
             onClick={() => {
               setLinkDraft(null)
+              setLinkError(null)
               setMode('source')
             }}
           >
@@ -362,18 +382,26 @@ export function MarkdownEditor({ id, name, value, error, onChange, onBlur, input
             <input
               id={linkInputId}
               value={linkDraft}
-              placeholder="https://"
-              onChange={(event) => setLinkDraft(event.target.value)}
+              placeholder="caa.govt.nz or https://…"
+              aria-invalid={linkError ? true : undefined}
+              onChange={(event) => {
+                setLinkDraft(event.target.value)
+                setLinkError(null)
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault()
                   applyLink()
                 }
-                if (event.key === 'Escape') setLinkDraft(null)
+                if (event.key === 'Escape') {
+                  setLinkDraft(null)
+                  setLinkError(null)
+                }
               }}
             />
             <button type="button" onClick={applyLink}>Add link</button>
-            <button type="button" onClick={() => setLinkDraft(null)}>Cancel</button>
+            <button type="button" onClick={() => { setLinkDraft(null); setLinkError(null) }}>Cancel</button>
+            {linkError ? <small className="form-error">{linkError}</small> : <small>Select text first to use it as the label, or paste an address to insert the link.</small>}
           </div>
         ) : null}
 
@@ -428,6 +456,14 @@ export function MarkdownEditor({ id, name, value, error, onChange, onBlur, input
       {error ? <small id={errorId} className="form-error">{error}</small> : null}
     </div>
   )
+}
+
+function linkLabel(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return url
+  }
 }
 
 function ToolbarButton({

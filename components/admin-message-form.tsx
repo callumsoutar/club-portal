@@ -10,7 +10,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { removeSafetyMessageImage, saveSafetyMessage, uploadSafetyMessageImage } from '@/app/(portal)/(account)/admin/actions'
 import { MarkdownEditor } from '@/components/markdown-editor'
 import { safetyMessageCategories } from '@/lib/safety-messages'
+import { DatePicker } from '@/components/flight/date-picker'
+import { Switch } from '@/components/flight/ui/switch'
 import {
+  normaliseHttps,
   safetyMessageFormSchema,
   slugifyTitle,
   type SafetyMessageFormValues,
@@ -55,6 +58,9 @@ export function AdminMessageForm({
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [tagDraft, setTagDraft] = useState('')
+  const [linkDraft, setLinkDraft] = useState({ label: '', url: '' })
+  const [linkError, setLinkError] = useState<string | null>(null)
+  const [showMainLink, setShowMainLink] = useState(Boolean(message?.linkLabel || message?.linkUrl))
   const [activeIntent, setActiveIntent] = useState<SaveIntent | null>(null)
   const [pending, startTransition] = useTransition()
   const form = useForm<SafetyMessageFormValues>({
@@ -93,8 +99,11 @@ export function AdminMessageForm({
   }, [isDirty])
 
   function submit(intent: SaveIntent) {
-    const filledLinks = form.getValues('links').filter((link) => link.label.trim() || link.url.trim())
+    const filledLinks = form.getValues('links')
+      .filter((link) => link.label.trim() || link.url.trim())
+      .map((link) => ({ ...link, url: normaliseHttps(link.url) }))
     form.setValue('links', filledLinks)
+    form.setValue('linkUrl', normaliseHttps(form.getValues('linkUrl')))
     void form.handleSubmit((values) => {
       const nextValues = {
         ...values,
@@ -183,6 +192,22 @@ export function AdminMessageForm({
     setImageNotice(message ? 'Hero image removed.' : null)
   }
 
+  function addRelatedLink() {
+    const label = linkDraft.label.trim()
+    const url = normaliseHttps(linkDraft.url)
+    if (!label || !/^https:\/\/\S+$/.test(url)) {
+      setLinkError('Add a label and a web address, such as caa.govt.nz/…')
+      return
+    }
+    if (links.fields.length >= 12) {
+      setLinkError('Twelve links is the limit.')
+      return
+    }
+    links.append({ label, url })
+    setLinkDraft({ label: '', url: '' })
+    setLinkError(null)
+  }
+
   function addTag() {
     const next = tagDraft.trim()
     if (!next || tags.includes(next) || tags.length >= 20) return
@@ -195,7 +220,7 @@ export function AdminMessageForm({
     : message?.isPublished ? 'Save changes' : 'Save draft'
 
   return (
-    <form className="message-editor" noValidate onSubmit={(event) => event.preventDefault()}>
+    <form className={isDirty ? 'message-editor is-dirty' : 'message-editor'} noValidate onSubmit={(event) => event.preventDefault()}>
       <div className="editor-bar">
         <div className="editor-bar-inner">
           <div className="editor-bar-copy">
@@ -208,13 +233,9 @@ export function AdminMessageForm({
               <span className={message?.isPublished ? 'status published' : 'status draft'}>
                 {message?.isPublished ? 'Published' : 'Draft'}
               </span>
-              {isDirty ? <span className="editor-dirty">Unsaved</span> : null}
             </div>
           </div>
           <div className="editor-bar-actions">
-            <button type="button" className="admin-secondary" disabled={busy} onClick={() => submit('save')}>
-              {saveLabel}
-            </button>
             {message?.isPublished ? (
               <button type="button" className="admin-secondary" disabled={busy} onClick={() => submit('unpublish')}>
                 {pending && activeIntent === 'unpublish' ? 'Unpublishing…' : 'Unpublish'}
@@ -245,8 +266,8 @@ export function AdminMessageForm({
             <div className="editor-field">
               <label htmlFor="message-slug">Address</label>
               <div className="slug-field">
-                <span aria-hidden="true">/</span>
-                <input id="message-slug" {...form.register('slug')} spellCheck={false} autoComplete="off" placeholder="message-address" />
+                <span aria-hidden="true">/safety/</span>
+                <input id="message-slug" {...form.register('slug')} spellCheck={false} autoComplete="off" placeholder="fuel-bowser-displays" />
                 <button
                   type="button"
                   onClick={() => form.setValue('slug', slugifyTitle(form.getValues('title')), { shouldValidate: true, shouldDirty: true })}
@@ -255,7 +276,7 @@ export function AdminMessageForm({
                 </button>
               </div>
               <FieldError message={form.formState.errors.slug?.message} />
-              {form.formState.errors.slug ? null : <p className="editor-hint">Lowercase letters, numbers, and hyphens.</p>}
+              {form.formState.errors.slug ? null : <p className="editor-hint">The public address. Lowercase letters, numbers, and hyphens.</p>}
             </div>
             <label>
               Summary
@@ -287,16 +308,42 @@ export function AdminMessageForm({
               ? 'Live on the public site and the briefing-room TV.'
               : 'Only admins can see this until you publish it.'}
           >
-            <label className="editor-switch">
-              <span>Feature this message</span>
-              <input type="checkbox" {...form.register('featured')} />
-            </label>
-            <label>
-              Published date
-              <input type="date" {...form.register('publishedDate')} />
-              <FieldError message={form.formState.errors.publishedDate?.message} />
-              {form.formState.errors.publishedDate ? null : <p className="editor-hint">Leave blank to use today when you publish.</p>}
-            </label>
+            <Controller
+              name="featured"
+              control={form.control}
+              render={({ field }) => (
+                <div className="editor-switch">
+                  <div>
+                    <label htmlFor="featured">Feature this message</label>
+                    <p className="editor-hint">Shown first on the Safety Hub.</p>
+                  </div>
+                  <Switch id="featured" checked={field.value} onCheckedChange={field.onChange} />
+                </div>
+              )}
+            />
+            <Controller
+              name="publishedDate"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <div className="editor-field">
+                  <label htmlFor="publishedDate">Published date</label>
+                  <DatePicker
+                    id="publishedDate"
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    mode="published"
+                    clearable
+                    label="Published date"
+                    placeholder="Today, when you publish"
+                    invalid={Boolean(fieldState.error)}
+                    className="h-11 rounded-md px-3 text-[15px] font-normal shadow-none sm:h-11 sm:rounded-md sm:text-[15px]"
+                  />
+                  <FieldError message={fieldState.error?.message} />
+                  {fieldState.error ? null : <p className="editor-hint">Leave blank to use today when you publish.</p>}
+                </div>
+              )}
+            />
           </EditorCard>
 
           <EditorCard title="Details" hint="Category and tags help people find this in the archive.">
@@ -394,25 +441,40 @@ export function AdminMessageForm({
             <FieldError message={form.formState.errors.imageUrl?.message} />
           </EditorCard>
 
-          <EditorCard title="Links" hint="Related links appear under the article as further reading.">
+          <EditorCard title="Links" hint="Shown under the article as further reading.">
             <div className="link-stack">
-              <div className="link-block">
-                <div className="link-block-head">Featured link</div>
-                <label>
-                  Label
-                  <input {...form.register('linkLabel')} />
-                  <FieldError message={form.formState.errors.linkLabel?.message} />
-                </label>
-                <label>
-                  URL
-                  <input {...form.register('linkUrl')} placeholder="https://" spellCheck={false} />
-                  <FieldError message={form.formState.errors.linkUrl?.message} />
-                </label>
-              </div>
+              {showMainLink ? (
+                <div className="link-block">
+                  <div className="link-block-head">
+                    <span>Main link</span>
+                    <button
+                      type="button"
+                      className="admin-text"
+                      onClick={() => {
+                        form.setValue('linkLabel', '', { shouldDirty: true })
+                        form.setValue('linkUrl', '', { shouldDirty: true })
+                        setShowMainLink(false)
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <label>
+                    Label
+                    <input {...form.register('linkLabel')} placeholder="CAA bowser notice" />
+                    <FieldError message={form.formState.errors.linkLabel?.message} />
+                  </label>
+                  <label>
+                    Web address
+                    <input {...form.register('linkUrl')} placeholder="caa.govt.nz/…" spellCheck={false} />
+                    <FieldError message={form.formState.errors.linkUrl?.message} />
+                  </label>
+                </div>
+              ) : null}
               {links.fields.map((field, index) => (
                 <div className="link-block" key={field.id}>
                   <div className="link-block-head">
-                    <span>Related link</span>
+                    <span>Link {index + 1}</span>
                     <button type="button" className="admin-text" onClick={() => links.remove(index)}>Remove</button>
                   </div>
                   <label>
@@ -421,19 +483,67 @@ export function AdminMessageForm({
                     <FieldError message={form.formState.errors.links?.[index]?.label?.message} />
                   </label>
                   <label>
-                    URL
+                    Web address
                     <input {...form.register(`links.${index}.url`)} placeholder="https://" spellCheck={false} />
                     <FieldError message={form.formState.errors.links?.[index]?.url?.message} />
                   </label>
                 </div>
               ))}
+              <div className="link-block">
+                <div className="link-block-head">Add a link</div>
+                <label>
+                  Label
+                  <input
+                    value={linkDraft.label}
+                    onChange={(event) => {
+                      setLinkDraft((draft) => ({ ...draft, label: event.target.value }))
+                      setLinkError(null)
+                    }}
+                    placeholder="What members should open"
+                  />
+                </label>
+                <label>
+                  Web address
+                  <input
+                    value={linkDraft.url}
+                    onChange={(event) => {
+                      setLinkDraft((draft) => ({ ...draft, url: event.target.value }))
+                      setLinkError(null)
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return
+                      event.preventDefault()
+                      addRelatedLink()
+                    }}
+                    placeholder="caa.govt.nz/…"
+                    spellCheck={false}
+                  />
+                </label>
+                {linkError ? <small className="form-error">{linkError}</small> : null}
+                <div className="link-add-row">
+                  <button type="button" className="admin-secondary" onClick={addRelatedLink}>Add link</button>
+                  {showMainLink ? null : (
+                    <button type="button" className="admin-text" onClick={() => setShowMainLink(true)}>
+                      Add a main link
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-            <button type="button" className="admin-secondary" onClick={() => links.append({ label: '', url: '' })}>
-              Add a related link
-            </button>
           </EditorCard>
         </aside>
       </div>
+
+      {isDirty ? (
+        <div className="editor-savebar" role="status">
+          <div className="editor-savebar-inner">
+            <p>Unsaved changes</p>
+            <button type="button" className="admin-primary" disabled={busy} onClick={() => submit('save')}>
+              {saveLabel}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </form>
   )
 }
