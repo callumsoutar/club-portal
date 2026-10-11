@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 
+import { cn } from "@/lib/utils";
+
 export interface HeroAction {
   href: string;
   label: string;
@@ -8,11 +10,10 @@ export interface HeroAction {
 }
 
 /**
- * Welcome band at the top of the portal home. Compact on purpose: the date,
- * a greeting, one line of context and the one or two things the visitor is
- * most likely here to do. Everything else lives in the page below.
+ * Top of the portal home: the club name as a small caps label, the page
+ * title, and the one or two things the visitor most likely came to do.
  */
-export function HomeHero({
+export function HomeHeader({
   eyebrow,
   title,
   description,
@@ -21,50 +22,48 @@ export function HomeHero({
 }: {
   eyebrow: string;
   title: string;
-  description: string;
+  description?: string;
   primary: HeroAction;
   secondary?: HeroAction;
 }) {
   return (
-    <section
-      aria-labelledby="home-title"
-      className="rounded-xl bg-[oklch(0.3_0.07_258)] text-white ring-1 ring-white/10 ring-inset"
-    >
-      <div className="flex flex-col gap-6 px-5 py-6 sm:px-8 sm:py-8 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
-        <div className="min-w-0 max-w-2xl">
-          <p className="text-[13px] font-medium text-white/60 tabular-nums">{eyebrow}</p>
-          <h1
-            id="home-title"
-            className="mt-2 text-[1.625rem] leading-tight font-semibold tracking-[-0.022em] text-balance sm:text-3xl"
-          >
-            {title}
-          </h1>
-          <p className="mt-2.5 text-[15px] leading-relaxed text-pretty text-white/72 sm:text-base">
-            {description}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
-          <HeroLink action={primary} tone="primary" />
-          {secondary ? <HeroLink action={secondary} tone="secondary" /> : null}
-        </div>
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">
+          {eyebrow}
+        </p>
+        <h1
+          id="home-title"
+          className="mt-1.5 text-[1.75rem] leading-tight font-bold tracking-[-0.025em] text-foreground"
+        >
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-sm text-pretty text-muted-foreground">{description}</p>
+        ) : null}
       </div>
-    </section>
+
+      <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row-reverse">
+        <HeaderLink action={primary} primary />
+        {secondary ? <HeaderLink action={secondary} /> : null}
+      </div>
+    </header>
   );
 }
 
-function HeroLink({ action, tone }: { action: HeroAction; tone: "primary" | "secondary" }) {
+function HeaderLink({ action, primary = false }: { action: HeroAction; primary?: boolean }) {
   const Icon = action.icon;
   return (
     <Link
       href={action.href}
-      className={
-        tone === "primary"
-          ? "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white px-4 text-sm font-semibold text-[oklch(0.3_0.07_258)] transition-colors hover:bg-white/90 focus-visible:ring-3 focus-visible:ring-white/50 focus-visible:outline-none"
-          : "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium text-white ring-1 ring-white/25 transition-colors ring-inset hover:bg-white/10 focus-visible:ring-3 focus-visible:ring-white/50 focus-visible:outline-none"
-      }
+      className={cn(
+        "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none",
+        primary
+          ? "bg-primary text-primary-foreground hover:bg-primary/90"
+          : "border bg-card text-foreground hover:bg-muted/60",
+      )}
     >
-      {Icon ? <Icon className="size-4" aria-hidden /> : null}
+      {Icon ? <Icon className="size-4" strokeWidth={1.75} aria-hidden /> : null}
       {action.label}
     </Link>
   );

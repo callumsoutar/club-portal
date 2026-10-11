@@ -100,7 +100,7 @@ export function ReviewArchiveButton({
         type="button"
         onClick={() => setOpen(true)}
         disabled={pending}
-        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium text-foreground transition-colors outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+        className="inline-flex h-8 items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
       >
         {pending ? (
           <Loader2 className="size-3.5 animate-spin" />
@@ -203,18 +203,18 @@ export function DecisionBar({
       {showDecisions && (
       <div
         className={cn(
-          "pb-safe fixed inset-x-0 bottom-0 z-30 mt-6 border-t border-foreground/10 bg-background/95 px-4 py-3.5 backdrop-blur-md",
-          "lg:static lg:border-foreground/10 lg:bg-transparent lg:px-0 lg:pt-5 lg:pb-0 lg:backdrop-blur-none",
+          "pb-safe fixed inset-x-0 bottom-0 z-30 border-t border-foreground/10 bg-background/95 px-4 py-3.5 shadow-float backdrop-blur-md",
+          "lg:static lg:mt-4 lg:border-border lg:bg-transparent lg:px-0 lg:pt-4 lg:pb-0 lg:shadow-none lg:backdrop-blur-none",
         )}
       >
-        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 lg:max-w-none">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 lg:max-w-none lg:flex-col lg:items-stretch">
             <>
               <button
                 type="button"
                 onClick={approve}
                 disabled={pending !== null}
                 className={cn(
-                  "inline-flex h-10 min-w-[8.5rem] flex-1 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium transition-opacity outline-none sm:flex-none",
+                  "inline-flex h-10 min-w-[8.5rem] flex-1 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold shadow-sm transition-opacity outline-none sm:flex-none lg:h-11 lg:w-full",
                   "focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
                   hasExpiredCurrency
                     ? "bg-warning text-warning-foreground hover:opacity-90"
@@ -233,7 +233,7 @@ export function DecisionBar({
                 type="button"
                 onClick={() => setDeclineOpen(true)}
                 disabled={pending !== null}
-                className="inline-flex h-10 min-w-[7.5rem] flex-1 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors outline-none hover:border-destructive/40 hover:bg-danger-muted hover:text-destructive focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 sm:flex-none"
+                className="inline-flex h-10 min-w-[7.5rem] flex-1 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 text-sm font-medium text-foreground transition-colors outline-none hover:border-destructive/40 hover:bg-danger-muted hover:text-destructive focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 sm:flex-none lg:w-full"
               >
                 <Ban className="size-4" strokeWidth={2.25} />
                 Decline

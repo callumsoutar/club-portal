@@ -52,15 +52,15 @@ export function CommentBox({
   return (
     <div className="space-y-4">
       {comments.length > 0 && (
-        <ul className={cn("space-y-3", plain && "space-y-4")}>
+        <ul className="space-y-3">
           {comments.map((comment) => (
             <li
               key={comment.id}
               className={cn(
                 plain
                   ? comment.is_internal
-                    ? "border-l-2 border-dashed border-border pl-3"
-                    : "space-y-1"
+                    ? "rounded-lg border border-dashed border-warning/50 bg-warning-muted/50 p-3"
+                    : "rounded-lg border bg-muted/40 p-3"
                   : cn(
                       "rounded-xl border p-4",
                       comment.is_internal

@@ -111,7 +111,7 @@ export interface Instructor {
 export interface ClubSettings {
   id: true;
   notification_email: string | null;
-  /** Master switch for Resend delivery. */
+  /** When true, submitters are emailed receipts and decision updates. */
   emails_enabled: boolean;
   /**
    * When false, guests authorise without accounts; member login/signup is hidden.

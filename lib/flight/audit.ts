@@ -1,7 +1,5 @@
 import "server-only";
 
-import { headers } from "next/headers";
-
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
 
 interface AuditInput {
@@ -15,30 +13,10 @@ interface AuditInput {
 }
 
 /**
- * Forensic log. Never throws — an audit failure must not roll back the
- * operation the user actually asked for, but it does get surfaced in the
- * server logs so it can't fail silently forever.
+ * The admin audit log has been removed. Call sites stay so existing actions
+ * don't need a second rewrite; nothing is written.
  */
-export async function audit(input: AuditInput): Promise<void> {
-  try {
-    const supabase = createServiceSupabase();
-    const h = await headers();
-
-    await supabase.from("audit_logs").insert({
-      actor_id: input.actorId ?? null,
-      actor_label: input.actorLabel ?? null,
-      action: input.action,
-      entity_type: input.entityType,
-      entity_id: input.entityId ?? null,
-      before: input.before ?? null,
-      after: input.after ?? null,
-      ip_address: getClientIp(h) ?? null,
-      user_agent: h.get("user-agent"),
-    });
-  } catch (err) {
-    console.error("[audit] failed to write entry", input.action, err);
-  }
-}
+export async function audit(_input: AuditInput): Promise<void> {}
 
 interface ActivityInput {
   authorisationId: string;
@@ -49,7 +27,7 @@ interface ActivityInput {
   metadata?: Record<string, unknown>;
 }
 
-/** User-facing timeline entry. Distinct from `audit` — this one is read by pilots. */
+/** Pilot-facing timeline entry on an authorisation. */
 export async function logActivity(input: ActivityInput): Promise<void> {
   try {
     const supabase = createServiceSupabase();

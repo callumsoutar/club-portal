@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { Loader2 } from "lucide-react";
@@ -50,7 +50,7 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
-  const { register, handleSubmit, watch, setValue } = useForm<Values>({
+  const { register, handleSubmit, watch, setValue, reset, formState } = useForm<Values>({
     defaultValues: {
       full_name: profile.full_name ?? "",
       phone: profile.phone ?? "",
@@ -66,6 +66,44 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
 
   const bfr = getExpiryInfo(watch("bfr_expiry"));
   const medical = getExpiryInfo(watch("medical_expiry"));
+  const unsaved = formState.isDirty;
+
+  useEffect(() => {
+    if (!unsaved) return;
+
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    const blockLink = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+
+      const anchor = (event.target as Element | null)?.closest("a");
+      if (!anchor || anchor.target === "_blank" || anchor.hasAttribute("download")) return;
+
+      const href = anchor.getAttribute("href");
+      if (!href || href.startsWith("#")) return;
+
+      const next = new URL(anchor.href, window.location.href);
+      if (next.origin !== window.location.origin) return;
+      if (next.pathname === window.location.pathname && next.search === window.location.search) return;
+
+      const leave = window.confirm("You have unsaved profile changes. Leave without saving?");
+      if (leave) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+    };
+
+    window.addEventListener("beforeunload", warn);
+    document.addEventListener("click", blockLink, true);
+    return () => {
+      window.removeEventListener("beforeunload", warn);
+      document.removeEventListener("click", blockLink, true);
+    };
+  }, [unsaved]);
 
   async function onSubmit(values: Values) {
     setPending(true);
@@ -77,12 +115,40 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
       return;
     }
 
+    reset(values);
     toast.success("Profile saved");
     router.refresh();
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-5">
+      <header
+        className={cn(
+          "sticky top-(--header-height) z-20 -mx-4 bg-background px-4 py-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8",
+          unsaved && "border-b",
+        )}
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 space-y-1.5">
+            <h1 className="text-2xl font-semibold tracking-[-0.025em] text-foreground sm:text-[1.75rem] sm:leading-tight">
+              Profile & currency
+            </h1>
+            <p className="text-[15px] leading-relaxed text-pretty text-muted-foreground">
+              Keep these up to date and your next authorisation fills itself in.
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            {unsaved ? (
+              <p className="text-sm text-muted-foreground">Unsaved changes</p>
+            ) : null}
+            <Button type="submit" disabled={pending}>
+              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Save changes
+            </Button>
+          </div>
+        </div>
+      </header>
+
       <Card title="About you">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Full name">
@@ -107,7 +173,11 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
           <Field label="Licence type">
             <Select
               value={watch("licence_type") || "__none"}
-              onValueChange={(v: string) => setValue("licence_type", v === "__none" ? "" : (v as LicenceType))}
+              onValueChange={(v: string) =>
+                setValue("licence_type", v === "__none" ? "" : (v as LicenceType), {
+                  shouldDirty: true,
+                })
+              }
             >
               <SelectTrigger className={fieldClass}>
                 <SelectValue placeholder="Choose your licence" />
@@ -165,7 +235,9 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
           <Select
             value={watch("preferred_aircraft_id") || "__none"}
             onValueChange={(v: string) =>
-              setValue("preferred_aircraft_id", v === "__none" ? "" : v)
+              setValue("preferred_aircraft_id", v === "__none" ? "" : v, {
+                shouldDirty: true,
+              })
             }
           >
             <SelectTrigger className={fieldClass}>
@@ -200,13 +272,6 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
           </Field>
         </div>
       </Card>
-
-      <div className="flex justify-end">
-        <Button type="submit" disabled={pending} className="w-full sm:w-auto">
-          {pending && <Loader2 className="size-4 animate-spin" />}
-          Save changes
-        </Button>
-      </div>
     </form>
   );
 }

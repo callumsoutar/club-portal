@@ -416,26 +416,17 @@ export async function deleteSection(id: string): Promise<ActionResult> {
 // Club settings
 // ---------------------------------------------------------------------------
 
-const clubSettingsSchema = z
-  .object({
-    emails_enabled: z.boolean(),
-    member_login_enabled: z.boolean(),
-    notification_email: z
-      .string()
-      .trim()
-      .email("Enter a valid email")
-      .optional()
-      .or(z.literal("")),
-  })
-  .superRefine((values, ctx) => {
-    if (values.emails_enabled && !values.notification_email) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["notification_email"],
-        message: "Add a central inbox email before enabling notifications.",
-      });
-    }
-  });
+const clubSettingsSchema = z.object({
+  /** Member emails: receipts, decisions and instructor comments. */
+  emails_enabled: z.boolean(),
+  member_login_enabled: z.boolean(),
+  notification_email: z
+    .string()
+    .trim()
+    .email("Enter a valid email")
+    .optional()
+    .or(z.literal("")),
+});
 
 export async function updateClubSettings(
   raw: z.input<typeof clubSettingsSchema>,

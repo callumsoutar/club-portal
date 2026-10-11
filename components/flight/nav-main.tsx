@@ -12,17 +12,11 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/flight/ui/sidebar";
-import {
-  AUTHORISE_NAV,
-  isNavActive,
-  type NavItem,
-  type NavSection,
-} from "@/lib/flight/nav";
-import { cn } from "@/lib/flight/utils";
+import { isNavActive, type NavItem, type NavSection } from "@/lib/flight/nav";
 
-/** Nav row. Active rows lift onto a white surface rather than tinting. */
+/** Nav row on the dark rail. Active rows get a lighter navy fill and white text. */
 export const NAV_ITEM_CLASS =
-  "h-9 gap-2.5 rounded-lg px-2.5 text-[13.5px] text-sidebar-foreground/85 [&_svg]:text-muted-foreground hover:text-foreground hover:[&_svg]:text-foreground data-active:bg-card data-active:text-foreground data-active:shadow-[0_1px_2px_oklch(0.2_0.03_250/0.06),0_0_0_1px_var(--sidebar-border)] data-active:[&_svg]:text-primary group-data-[collapsible=icon]:rounded-lg";
+  "h-8 gap-3 rounded-md px-2.5 text-[13.5px] font-normal text-sidebar-foreground [&_svg]:text-sidebar-foreground/70 hover:bg-white/[0.06] hover:text-white hover:[&_svg]:text-white data-active:bg-sidebar-accent data-active:font-medium data-active:text-white data-active:[&_svg]:text-white group-data-[collapsible=icon]:rounded-md";
 
 export function NavMain({
   sections,
@@ -38,45 +32,25 @@ export function NavMain({
   const closeOnMobile = () => {
     if (isMobile) setOpenMobile(false);
   };
-  const AuthoriseIcon = AUTHORISE_NAV.icon;
-  const authoriseActive = isNavActive(pathname, AUTHORISE_NAV.href);
 
   return (
     <>
-      <SidebarGroup className="px-3 pt-3 pb-2 group-data-[collapsible=icon]:px-2">
-        <SidebarGroupContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={authoriseActive}
-                tooltip={AUTHORISE_NAV.title}
-                className={cn(
-                  "h-10 justify-center gap-2 rounded-lg bg-primary px-3 font-medium text-primary-foreground shadow-[0_1px_2px_oklch(0.2_0.1_258/0.2),inset_0_1px_0_oklch(1_0_0/0.12)] transition-colors",
-                  "hover:bg-primary/92 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground",
-                  "data-active:bg-primary data-active:text-primary-foreground",
-                  "group-data-[collapsible=icon]:rounded-lg",
-                )}
-              >
-                <Link href={AUTHORISE_NAV.href} onClick={closeOnMobile}>
-                  <AuthoriseIcon className="text-primary-foreground" />
-                  <span>{AUTHORISE_NAV.title}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroupContent>
-      </SidebarGroup>
-
-      {sections.map((section) => (
-        <SidebarGroup key={section.key} className="px-3 py-1.5 group-data-[collapsible=icon]:px-2">
+      {sections.map((section, index) => (
+        <SidebarGroup
+          key={section.key}
+          className={
+            index === 0
+              ? "px-2.5 pt-2 pb-3 group-data-[collapsible=icon]:px-2"
+              : "px-2.5 py-3 group-data-[collapsible=icon]:px-2"
+          }
+        >
           {section.label ? (
-            <SidebarGroupLabel className="h-7 px-2.5 text-[11px] font-medium tracking-[0.06em] text-muted-foreground/80 uppercase">
+            <SidebarGroupLabel className="mb-1 h-6 px-2.5 text-[12px] font-medium text-sidebar-foreground/55">
               {section.label}
             </SidebarGroupLabel>
           ) : null}
           <SidebarGroupContent>
-            <SidebarMenu className="gap-0.5">
+            <SidebarMenu className="gap-px">
               {section.items.map((item) => {
                 const Icon = item.icon;
                 return (

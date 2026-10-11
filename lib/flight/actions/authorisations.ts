@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { audit, checkRateLimit, getClientIp, logActivity } from "@/lib/flight/audit";
+import { checkRateLimit, getClientIp, logActivity } from "@/lib/flight/audit";
 import { GUEST_RATE_LIMIT } from "@/lib/flight/constants";
 import { buildTemplateSchema, indexFields } from "@/lib/flight/form-engine";
 import { notify } from "@/lib/flight/notifications/service";
@@ -36,7 +36,7 @@ export interface ActionResult<T = unknown> {
  *
  * The client's validation is a UX affordance. This is the real gate.
  *
- * Post-insert bookkeeping (answer rows, audit, club-inbox notification) runs
+ * Post-insert bookkeeping (answer rows, activity, club-inbox notification) runs
  * in `after()` so the pilot isn't held waiting on Resend / secondary writes.
  */
 export async function submitAuthorisation(
@@ -216,14 +216,6 @@ export async function submitAuthorisation(
         verb: "submitted",
         summary: `Authorisation submitted for ${registration ?? "an aircraft"}`,
       }),
-      audit({
-        actorId: user?.id,
-        actorLabel: user?.email ?? "guest",
-        action: "authorisation.submit",
-        entityType: "authorisation",
-        entityId: created.id,
-        after: { reference: created.reference, status: "submitted" },
-      }),
       // Club ops inbox — new request ready for review.
       notify({
         event: "authorisation_submitted",
@@ -390,15 +382,6 @@ async function decide(
           ? `Approved by ${actorName}`
           : `Declined by ${actorName}${reason ? ` — ${reason}` : ""}`,
     }),
-    audit({
-      actorId: user.id,
-      actorLabel: actorName,
-      action: `authorisation.${decision}`,
-      entityType: "authorisation",
-      entityId: authorisationId,
-      before: { status: existing.status },
-      after: { status: decision, reason },
-    }),
     notify({
       event: decision === "approved" ? "approval_granted" : "approval_declined",
       deliverTo: "recipient",
@@ -416,7 +399,7 @@ async function decide(
   ]);
 
   // Backfill pilot_email when we resolved it from the profile — keeps future
-  // notifications (and the audit trail) consistent.
+  // notifications consistent.
   if (pilotEmail && !existing.pilot_email) {
     await supabase
       .from("authorisations")
