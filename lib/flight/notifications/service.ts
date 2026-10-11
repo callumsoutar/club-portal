@@ -40,14 +40,14 @@ const CLUB_INBOX_EVENTS = new Set<NotificationEvent>([
  *
  * Routing:
  *  - New authorisation / overdue alerts → `club_settings.notification_email`
- *  - Approve / decline → the pilot address on `to`
+ *    whenever that address is set
+ *  - Submit receipt, approve, decline and comments → the pilot address on `to`,
+ *    only when `club_settings.emails_enabled` is on
  *
- * Master switch: `club_settings.emails_enabled`. When off, rows are still
- * recorded as skipped so ops can see what would have been sent.
+ * Skipped deliveries are still recorded so ops can see what was not sent.
  *
- * Notifications are always persisted first and delivered second. That means:
- *  - nothing is lost if the mail provider is down,
- *  - the admin audit view shows what the system tried to send.
+ * Notifications are always persisted first and delivered second, so nothing
+ * is lost if the mail provider is down.
  *
  * Delivery itself is a swappable transport. Today it's Resend if the key is
  * present, and a no-op logger otherwise, so local development never sends real
@@ -65,19 +65,24 @@ export async function notify(input: NotifyInput): Promise<{ queued: boolean }> {
     ? settings.notificationEmail
     : normaliseEmail(input.to);
 
-  if (!settings.emailsEnabled) {
+  if (usesClubInbox && !settings.notificationEmail) {
+    return insertSkipped(supabase, input, rendered, {
+      recipientEmail: input.to || "unconfigured@inbox",
+      reason: "Admin notification address is not set in company settings.",
+    });
+  }
+
+  if (!usesClubInbox && !settings.memberEmailsEnabled) {
     return insertSkipped(supabase, input, rendered, {
       recipientEmail: deliveryEmail ?? input.to ?? "unconfigured@inbox",
-      reason: "Email notifications are disabled in club settings.",
+      reason: "Member emails are turned off in company settings.",
     });
   }
 
   if (!deliveryEmail) {
     return insertSkipped(supabase, input, rendered, {
       recipientEmail: input.to || "unconfigured@inbox",
-      reason: usesClubInbox
-        ? "Club notification inbox is not configured in admin settings."
-        : "No recipient email address was available.",
+      reason: "No recipient email address was available.",
     });
   }
 
@@ -148,17 +153,6 @@ export async function dispatch(notificationId: string): Promise<void> {
   if (!row || row.status === "sent" || row.status === "skipped") return;
 
   const settings = await getClubEmailSettings(supabase);
-  if (!settings.emailsEnabled) {
-    await supabase
-      .from("notifications")
-      .update({
-        status: "skipped",
-        error: "Email notifications are disabled in club settings.",
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", notificationId);
-    return;
-  }
 
   const event = row.event as NotificationEvent;
   const payload = (row.payload ?? {}) as NotificationPayload;
@@ -171,14 +165,36 @@ export async function dispatch(notificationId: string): Promise<void> {
     ? settings.notificationEmail
     : normaliseEmail(row.recipient_email);
 
+  if (usesClubInbox && !settings.notificationEmail) {
+    await supabase
+      .from("notifications")
+      .update({
+        status: "skipped",
+        error: "Admin notification address is not set in company settings.",
+        sent_at: new Date().toISOString(),
+      })
+      .eq("id", notificationId);
+    return;
+  }
+
+  if (!usesClubInbox && !settings.memberEmailsEnabled) {
+    await supabase
+      .from("notifications")
+      .update({
+        status: "skipped",
+        error: "Member emails are turned off in company settings.",
+        sent_at: new Date().toISOString(),
+      })
+      .eq("id", notificationId);
+    return;
+  }
+
   if (!to) {
     await supabase
       .from("notifications")
       .update({
         status: "skipped",
-        error: usesClubInbox
-          ? "Club notification inbox is not configured in admin settings."
-          : "No recipient email address was available.",
+        error: "No recipient email address was available.",
         sent_at: new Date().toISOString(),
       })
       .eq("id", notificationId);
@@ -228,7 +244,7 @@ export async function dispatch(notificationId: string): Promise<void> {
 }
 
 interface ClubEmailSettings {
-  emailsEnabled: boolean;
+  memberEmailsEnabled: boolean;
   notificationEmail: string | null;
 }
 
@@ -250,13 +266,13 @@ async function getClubEmailSettings(
       .eq("id", true)
       .maybeSingle();
     return {
-      emailsEnabled: false,
+      memberEmailsEnabled: false,
       notificationEmail: normaliseEmail(fallback?.notification_email),
     };
   }
 
   return {
-    emailsEnabled: Boolean(data?.emails_enabled),
+    memberEmailsEnabled: Boolean(data?.emails_enabled),
     notificationEmail: normaliseEmail(data?.notification_email),
   };
 }

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plus } from 'lucide-react'
+import { Plus, Tv } from 'lucide-react'
 
 import { Button } from '@/components/flight/ui/button'
 import { Page, PageHeader } from '@/components/portal/page'
@@ -37,12 +37,20 @@ export default async function AdminMessagesPage() {
         title="Manage articles"
         description={`${messages.length - drafts} published${drafts ? ` · ${drafts} draft${drafts === 1 ? '' : 's'}` : ''}. Published articles appear in the Safety Hub and on the briefing room TV.`}
         actions={
-          <Button asChild>
-            <Link href="/admin/messages/new">
-              <Plus data-icon="inline-start" />
-              New article
-            </Link>
-          </Button>
+          <>
+            <Button asChild variant="outline">
+              <Link href="/tv">
+                <Tv data-icon="inline-start" />
+                Start briefing room TV
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/admin/messages/new">
+                <Plus data-icon="inline-start" />
+                New article
+              </Link>
+            </Button>
+          </>
         }
       />
 

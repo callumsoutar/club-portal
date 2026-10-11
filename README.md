@@ -4,7 +4,7 @@ The member portal for Kapiti Aero Club. One app, one navigation shell, covering:
 
 - **Flight authorisation**: pilots submit an authorisation before they fly, and instructors review and approve it.
 - **Safety Hub**: the club's library of safety articles, with topic browsing, search, and shareable article links.
-- **Club admin**: fleet, instructors, the form builder, club settings, the audit log, and the article editor.
+- **Club admin**: fleet, instructors, the form builder, club settings, and the article editor.
 - **Briefing room TV**: a full-screen slideshow of published safety articles for the clubhouse display.
 
 The club name and logo come from club settings (`/admin/settings`).
@@ -18,7 +18,7 @@ Access is enforced on the server in layouts, pages, and server actions, and by S
 | Home (`/`), Safety Hub (`/safety`), Authorise a flight (`/authorise`), tracking links (`/a/[token]`) | Everyone, including guests without an account |
 | My flights, profile and currency (`/fly`, `/fly/profile`) | Signed-in pilots |
 | Review queue (`/fly/instructor`) | Instructors and flight admins |
-| Fleet, instructors, form builder, audit log | Flight admins (`profiles.role = 'admin'`) |
+| Fleet, instructors, form builder | Flight admins (`profiles.role = 'admin'`) |
 | Article editor (`/admin`), Briefing room TV (`/tv`) | Safety admins (`user_roles`) |
 | Club settings | Flight admins and safety admins |
 

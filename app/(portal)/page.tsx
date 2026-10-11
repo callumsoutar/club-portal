@@ -2,18 +2,19 @@ import Link from "next/link";
 
 import { AuthorisationCard } from "@/components/flight/authorisation-card";
 import { CurrencyAlert } from "@/components/flight/currency-alert";
-import { Button } from "@/components/flight/ui/button";
-import { HomeHero, type HeroAction } from "@/components/portal/home-hero";
+import { HomeHeader, type HeroAction } from "@/components/portal/home-hero";
 import {
   AuthorisationSteps,
-  CurrencyList,
-  HomeSection,
   QuickLinks,
+  RecordList,
+  ReminderList,
   SafetyFeed,
-  TopicList,
+  Section,
+  SectionEmpty,
+  TopicPills,
   type QuickLink,
 } from "@/components/portal/home-panels";
-import { Page, TextLink } from "@/components/portal/page";
+import { Page } from "@/components/portal/page";
 import { hasRole } from "@/lib/flight/auth";
 import { ACTIONABLE_STATUSES } from "@/lib/flight/constants";
 import { APP_NAV, AUTHORISE_NAV, canAccessNav, PROFILE_NAV } from "@/lib/flight/nav";
@@ -65,7 +66,6 @@ export default async function PortalHomePage() {
     .map((name) => ({ name, count: topicCounts.get(name)! }));
 
   const openFlights = myAuthorisations.filter((a) => OPEN_STATUSES.has(a.status));
-  const firstName = session?.profile.full_name?.trim().split(/\s+/)[0];
   const reviewCount = reviewQueue?.length ?? 0;
   const reviewCountLabel = reviewCount >= REVIEW_LIMIT ? `${REVIEW_LIMIT}+` : String(reviewCount);
 
@@ -85,97 +85,105 @@ export default async function PortalHomePage() {
       ? { href: flightsNav.href, icon: flightsNav.icon, label: flightsNav.title }
       : undefined;
 
+  // Leave out anything the page already links to prominently.
   const access = { role, safetyAdmin: viewer.safetyAdmin };
-  const heroHrefs = new Set(
-    ["/", AUTHORISE_NAV.href, secondaryAction?.href].filter((href): href is string => Boolean(href)),
+  const linkedAbove = new Set(
+    ["/", "/safety", AUTHORISE_NAV.href, secondaryAction?.href].filter(
+      (href): href is string => Boolean(href),
+    ),
   );
   const quickLinks: QuickLink[] = [
-    ...APP_NAV.filter((item) => !heroHrefs.has(item.href) && canAccessNav(item, access)),
+    ...APP_NAV.filter((item) => !linkedAbove.has(item.href) && canAccessNav(item, access)),
     ...(isMember ? [PROFILE_NAV] : []),
   ];
 
   return (
-    <Page width="wide" className="gap-8">
-      <HomeHero
-        eyebrow={new Intl.DateTimeFormat("en-NZ", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-          timeZone: CLUB_TIME_ZONE,
-        }).format(now)}
-        title={
-          viewer.user
-            ? `${greeting(now)}${firstName ? `, ${firstName}` : ""}`
-            : `Welcome to ${company.companyName}`
-        }
-        description={
-          viewer.user
-            ? "Authorise a flight, keep an eye on your currency and catch up on the latest safety messages."
-            : "Authorise your flight before you go, and keep up with the club's safety messages. You don't need an account for either."
-        }
-        primary={{ href: AUTHORISE_NAV.href, label: AUTHORISE_NAV.title, icon: AUTHORISE_NAV.icon }}
-        secondary={secondaryAction}
-      />
+    <>
+      {/* White band for the title; cancels the shell's top padding. */}
+      <div className="-mt-8 border-b bg-card md:-mt-10">
+        <Page
+          width="wide"
+          className={`max-w-7xl gap-0 pt-8 md:pt-10 ${viewer.user ? "pb-8" : "pb-0"}`}
+        >
+          <HomeHeader
+            eyebrow={company.companyName}
+            title="Home"
+            description={
+              viewer.user
+                ? new Intl.DateTimeFormat("en-NZ", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                    timeZone: CLUB_TIME_ZONE,
+                  }).format(now)
+                : "Authorise your flight before you go and keep up with the club's safety messages. You don't need an account for either."
+            }
+            primary={{ href: AUTHORISE_NAV.href, label: AUTHORISE_NAV.title, icon: AUTHORISE_NAV.icon }}
+            secondary={secondaryAction}
+          />
 
-      {session ? <CurrencyAlert pilot={session.pilot} /> : null}
-
-      <div className="grid gap-10 lg:grid-cols-[minmax(0,1fr)_17rem] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_19rem]">
-        <div className="flex min-w-0 flex-col gap-10">
-          {reviewQueue ? (
-            <ReviewSection queue={reviewQueue} countLabel={reviewCountLabel} />
-          ) : null}
-
-          {isMember ? <MyFlightsSection flights={openFlights} /> : null}
-
-          <HomeSection
-            id="safety-heading"
-            title="Latest from the Safety Hub"
-            action={articles.length > 0 ? <TextLink href="/safety">All articles</TextLink> : null}
-            framed
-          >
-            {featured ? (
-              <SafetyFeed featured={featured} rest={moreArticles} isNew={isNew} />
-            ) : (
-              <p className="px-5 py-10 text-center text-sm text-muted-foreground">
-                Safety articles will appear here once the safety team publishes them.
-              </p>
-            )}
-          </HomeSection>
-        </div>
-
-        <aside className="flex min-w-0 flex-col gap-10" aria-label="More">
-          {viewer.user ? (
-            quickLinks.length > 0 ? (
-              <HomeSection id="links-heading" title="Quick links">
-                <QuickLinks links={quickLinks} />
-              </HomeSection>
-            ) : null
-          ) : (
-            <HomeSection id="how-heading" title="How flight authorisation works">
-              <AuthorisationSteps />
-            </HomeSection>
-          )}
-
-          {session ? (
-            <HomeSection
-              id="currency-heading"
-              title="Your currency"
-              action={<TextLink href={PROFILE_NAV.href}>Update</TextLink>}
-            >
-              <CurrencyList pilot={session.pilot} />
-            </HomeSection>
-          ) : null}
-
-          {topics.length > 0 ? (
-            <HomeSection id="topics-heading" title="Safety topics">
-              <TopicList topics={topics} />
-            </HomeSection>
-          ) : null}
-
-          {!viewer.user && viewer.memberLoginEnabled ? <MemberPrompt /> : null}
-        </aside>
+          {!viewer.user ? <AuthorisationSteps className="mt-7 border-t py-6" /> : null}
+        </Page>
       </div>
-    </Page>
+
+      <div className="-mb-8 flex-1 bg-[oklch(0.976_0.004_255)] md:-mb-10">
+        <Page width="wide" className="max-w-7xl gap-8 pt-8 md:pt-10">
+          {session ? <CurrencyAlert pilot={session.pilot} /> : null}
+
+          <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_20rem] xl:gap-12">
+            <div className="flex min-w-0 flex-col gap-6">
+              {reviewQueue ? (
+                <ReviewSection queue={reviewQueue} countLabel={reviewCountLabel} />
+              ) : null}
+
+              {isMember ? <MyFlightsSection flights={openFlights} /> : null}
+
+              <Section
+                id="safety-heading"
+                title="Latest from the Safety Hub"
+                action={articles.length > 0 ? { href: "/safety", label: "All articles" } : undefined}
+              >
+                {featured ? (
+                  <SafetyFeed featured={featured} rest={moreArticles} isNew={isNew} />
+                ) : (
+                  <SectionEmpty>
+                    Safety articles will appear here once the safety team publishes them.
+                  </SectionEmpty>
+                )}
+              </Section>
+            </div>
+
+            <aside className="flex min-w-0 flex-col gap-10" aria-label="More">
+              {session ? (
+                <Section
+                  id="reminders-heading"
+                  title="Personal reminders"
+                  variant="aside"
+                  action={{ href: PROFILE_NAV.href, label: "Edit" }}
+                >
+                  <ReminderList pilot={session.pilot} />
+                </Section>
+              ) : null}
+
+              {viewer.user && quickLinks.length > 0 ? (
+                <Section id="links-heading" title="Quick links" variant="aside">
+                  <QuickLinks links={quickLinks} />
+                </Section>
+              ) : null}
+
+              {topics.length > 0 ? (
+                <Section id="topics-heading" title="Browse by topic" variant="aside">
+                  <TopicPills topics={topics} />
+                </Section>
+              ) : null}
+
+              {!viewer.user && viewer.memberLoginEnabled ? <MemberPrompt /> : null}
+            </aside>
+          </div>
+        </Page>
+      </div>
+    </>
   );
 }
 
@@ -188,19 +196,14 @@ function ReviewSection({
 }) {
   const count = queue.length;
   return (
-    <HomeSection
+    <Section
       id="review-heading"
       title="Waiting for your review"
-      description={
-        count === 0
-          ? "Nothing waiting. New submissions show here as pilots send them."
-          : `${countLabel} ${count === 1 ? "authorisation needs" : "authorisations need"} an instructor decision`
-      }
-      action={<TextLink href="/fly/instructor">Review queue</TextLink>}
-      framed={count > 0}
+      meta={count > 0 ? countLabel : undefined}
+      action={{ href: "/fly/instructor", label: "Review queue" }}
     >
       {count > 0 ? (
-        <ul className="divide-y divide-border/70">
+        <RecordList>
           {queue.slice(0, 4).map((a) => (
             <li key={a.id}>
               <AuthorisationCard
@@ -210,71 +213,66 @@ function ReviewSection({
               />
             </li>
           ))}
-        </ul>
-      ) : null}
-    </HomeSection>
+        </RecordList>
+      ) : (
+        <SectionEmpty>Nothing waiting. New submissions show here as pilots send them.</SectionEmpty>
+      )}
+    </Section>
   );
 }
 
 function MyFlightsSection({ flights }: { flights: AuthorisationWithRelations[] }) {
   return (
-    <HomeSection
+    <Section
       id="my-flights-heading"
       title="Your open authorisations"
-      description={
-        flights.length === 0
-          ? "Flights you submit show here until they're done."
-          : undefined
-      }
-      action={<TextLink href="/fly">My flights</TextLink>}
-      framed={flights.length > 0}
+      meta={flights.length > 0 ? flights.length : undefined}
+      action={{ href: "/fly", label: "My flights" }}
     >
       {flights.length > 0 ? (
-        <ul className="divide-y divide-border/70">
+        <RecordList>
           {flights.slice(0, 3).map((a) => (
             <li key={a.id}>
               <AuthorisationCard authorisation={a} href={`/a/${a.access_token}`} />
             </li>
           ))}
-        </ul>
-      ) : null}
-    </HomeSection>
+        </RecordList>
+      ) : (
+        <SectionEmpty>Flights you submit show here until they&apos;re done.</SectionEmpty>
+      )}
+    </Section>
   );
 }
 
 function MemberPrompt() {
   return (
-    <section aria-labelledby="member-heading" className="rounded-xl bg-muted/60 p-5">
-      <h2 id="member-heading" className="text-sm font-semibold">
+    <section
+      aria-labelledby="member-heading"
+      className="rounded-lg bg-sidebar px-5 py-5 text-sidebar-foreground"
+    >
+      <h2 id="member-heading" className="text-sm font-semibold text-white">
         Club member?
       </h2>
-      <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="mt-1.5 text-[13px] leading-relaxed">
         Sign in to keep a history of your flights, track your BFR and medical, and have your
         details filled in for you next time.
       </p>
-      <div className="mt-4 flex flex-col gap-2 sm:flex-row lg:flex-col">
-        <Button asChild className="w-full">
-          <Link href="/login">Sign in</Link>
-        </Button>
-        <Button asChild variant="outline" className="w-full">
-          <Link href="/signup">Create an account</Link>
-        </Button>
+      <div className="mt-4 flex items-center gap-4">
+        <Link
+          href="/login"
+          className="inline-flex h-8 items-center rounded-md bg-white px-3.5 text-sm font-medium text-sidebar transition-colors hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/signup"
+          className="rounded-sm text-sm font-medium text-white underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:outline-none"
+        >
+          Create an account
+        </Link>
       </div>
     </section>
   );
-}
-
-function greeting(now: Date) {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-NZ", {
-      hour: "numeric",
-      hourCycle: "h23",
-      timeZone: CLUB_TIME_ZONE,
-    }).format(now),
-  );
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
 }
 
 /** Today's date at the club as `YYYY-MM-DD`. */

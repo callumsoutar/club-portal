@@ -46,7 +46,7 @@ export function AnswerSections({
 
   return (
     <div
-      className={cn(variant === "plain" ? "space-y-10" : "space-y-4", className)}
+      className={cn(variant === "plain" ? "space-y-5 lg:space-y-6" : "space-y-4", className)}
     >
       {sections.map((section) => (
         <AnswerSection
@@ -89,25 +89,64 @@ function AnswerSection({
   const incomplete = allBoolean && confirmed < booleans.length;
   const plain = variant === "plain";
 
-  return (
-    <section
-      className={cn(!plain && "overflow-hidden rounded-xl border bg-card")}
-    >
-      <div
-        className={cn(
-          "flex items-center justify-between gap-3",
-          plain
-            ? "mb-1 border-b border-foreground/15 pb-2"
-            : "px-4 pt-3.5 pb-2",
-        )}
-      >
-        <h3
-          className={cn(
-            plain
-              ? "text-sm font-semibold text-foreground"
-              : "text-[13px] font-semibold tracking-tight",
+  if (plain) {
+    return (
+      <section className="overflow-hidden rounded-2xl bg-card shadow-soft ring-1 ring-foreground/[0.04]">
+        <div className="flex items-center justify-between gap-3 border-b px-5 py-3.5">
+          <h3 className="text-sm font-semibold text-foreground">
+            {section.title}
+          </h3>
+          {allBoolean && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium tabular-nums",
+                incomplete
+                  ? "bg-danger-muted text-destructive"
+                  : "bg-success-muted text-success",
+              )}
+            >
+              {incomplete ? (
+                <X className="size-3" strokeWidth={2.75} />
+              ) : (
+                <Check className="size-3" strokeWidth={2.75} />
+              )}
+              {confirmed}/{booleans.length} confirmed
+            </span>
           )}
-        >
+        </div>
+
+        {allBoolean ? (
+          <ul className="divide-y divide-border/70">
+            {fields.map((field) => (
+              <ChecklistRow
+                key={field.key}
+                label={field.label}
+                checked={Boolean(answers[field.key])}
+              />
+            ))}
+          </ul>
+        ) : (
+          <dl className="divide-y divide-border/70">
+            {fields.map((field) => (
+              <AnswerRow
+                key={field.key}
+                field={field}
+                answers={answers}
+                sources={sources}
+                expiry={expiryByKey[field.key]}
+                plain
+              />
+            ))}
+          </dl>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <section className="overflow-hidden rounded-xl border bg-card">
+      <div className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2">
+        <h3 className="text-[13px] font-semibold tracking-tight">
           {section.title}
         </h3>
         {allBoolean && (
@@ -124,20 +163,57 @@ function AnswerSection({
         )}
       </div>
 
-      <dl className={cn(plain ? "space-y-0" : "divide-y divide-border/70")}>
-        {fields.map((field, index) => (
+      <dl className="divide-y divide-border/70">
+        {fields.map((field) => (
           <AnswerRow
             key={field.key}
             field={field}
             answers={answers}
             sources={sources}
             expiry={expiryByKey[field.key]}
-            plain={plain}
-            bordered={plain && index > 0}
           />
         ))}
       </dl>
     </section>
+  );
+}
+
+function ChecklistRow({ label, checked }: { label: string; checked: boolean }) {
+  return (
+    <li
+      className={cn(
+        "flex items-start gap-3 px-5 py-3 text-sm leading-snug",
+        !checked && "bg-danger-muted/60",
+      )}
+    >
+      <span
+        className={cn(
+          "mt-px flex size-5 shrink-0 items-center justify-center rounded-full",
+          checked
+            ? "bg-success-muted text-success"
+            : "bg-destructive text-white",
+        )}
+      >
+        {checked ? (
+          <Check className="size-3" strokeWidth={3} aria-label="Confirmed" />
+        ) : (
+          <X className="size-3" strokeWidth={3} aria-label="Not confirmed" />
+        )}
+      </span>
+      <span
+        className={cn(
+          "min-w-0 flex-1",
+          checked ? "text-foreground" : "font-medium text-destructive",
+        )}
+      >
+        {label}
+      </span>
+      {!checked && (
+        <span className="shrink-0 text-xs font-semibold text-destructive uppercase">
+          Not confirmed
+        </span>
+      )}
+    </li>
   );
 }
 
@@ -147,14 +223,12 @@ function AnswerRow({
   sources,
   expiry,
   plain = false,
-  bordered = false,
 }: {
   field: FormField;
   answers: AnswerMap;
   sources: DataSources;
   expiry?: ExpiryInfo;
   plain?: boolean;
-  bordered?: boolean;
 }) {
   const isBoolean = field.type === "checkbox" || field.type === "toggle";
   const checked = Boolean(answers[field.key]);
@@ -167,9 +241,9 @@ function AnswerRow({
     <div
       className={cn(
         plain
-          ? "grid grid-cols-1 gap-0.5 py-2.5 sm:grid-cols-[11rem_minmax(0,1fr)] sm:items-baseline sm:gap-8"
+          ? "grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-center sm:gap-6"
           : "flex items-baseline justify-between gap-6 px-4 py-2.5",
-        bordered && "border-t border-border/80",
+        plain && isBoolean && !checked && "bg-danger-muted/60",
       )}
     >
       <dt
@@ -192,11 +266,20 @@ function AnswerRow({
       >
         {isBoolean ? (
           checked ? (
-            <Check
-              className={cn("size-4 text-foreground/70", !plain && "ml-auto")}
-              strokeWidth={2.5}
-              aria-label="Confirmed"
-            />
+            plain ? (
+              <span className="inline-flex items-center gap-1.5 text-success">
+                <span className="flex size-5 items-center justify-center rounded-full bg-success-muted">
+                  <Check className="size-3" strokeWidth={3} />
+                </span>
+                Yes
+              </span>
+            ) : (
+              <Check
+                className="ml-auto size-4 text-foreground/70"
+                strokeWidth={2.5}
+                aria-label="Confirmed"
+              />
+            )
           ) : (
             <span
               className={cn(
@@ -209,10 +292,10 @@ function AnswerRow({
             </span>
           )
         ) : plain ? (
-          <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
             <span
               className={cn(
-                "break-words",
+                "break-words text-foreground",
                 value === "—" && "font-normal text-muted-foreground/50",
                 expiry?.state === "expired" && "text-destructive",
               )}
@@ -222,10 +305,12 @@ function AnswerRow({
             {note && (
               <span
                 className={cn(
-                  "text-[13px] font-normal",
-                  expiry?.state === "expired" && "text-destructive",
-                  expiry?.state === "expiring" && "text-warning-foreground",
-                  expiry?.state === "valid" && "text-muted-foreground",
+                  "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
+                  expiry?.state === "expired" &&
+                    "bg-danger-muted text-destructive",
+                  expiry?.state === "expiring" &&
+                    "bg-warning-muted text-warning-foreground",
+                  expiry?.state === "valid" && "bg-success-muted text-success",
                 )}
               >
                 {note}

@@ -1,13 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  BookOpen,
   ClipboardCheck,
   House,
   ListChecks,
   Megaphone,
   Plane,
-  ScrollText,
   Settings,
-  Tv,
   UserRound,
   Users,
   Wrench,
@@ -23,7 +22,7 @@ export type NavSection = "home" | "flying" | "safety" | "club";
  *
  * - `public`: everyone, including signed-out visitors
  * - `member` / `instructor` / `admin`: minimum flight role
- * - `safety`: safety editors (`user_roles.admin`), including the briefing-room TV
+ * - `safety`: safety editors (`user_roles.admin`)
  * - `club`: safety editors or flight admins
  */
 export type NavAccess = "public" | AppRole | "safety" | "club";
@@ -58,6 +57,8 @@ export const AUTHORISE_NAV = {
 
 export const APP_NAV: NavItem[] = [
   { href: "/", title: "Home", icon: House, access: "public", section: "home" },
+  { ...AUTHORISE_NAV, access: "public", section: "home" },
+  { href: "/safety", title: "Safety Hub", icon: BookOpen, access: "public", section: "home" },
   {
     href: "/fly",
     title: "My flights",
@@ -76,13 +77,6 @@ export const APP_NAV: NavItem[] = [
     href: "/admin",
     title: "Manage articles",
     icon: Megaphone,
-    access: "safety",
-    section: "safety",
-  },
-  {
-    href: "/tv",
-    title: "Briefing room TV",
-    icon: Tv,
     access: "safety",
     section: "safety",
   },
@@ -112,13 +106,6 @@ export const APP_NAV: NavItem[] = [
     title: "Club settings",
     icon: Settings,
     access: "club",
-    section: "club",
-  },
-  {
-    href: "/admin/audit",
-    title: "Audit log",
-    icon: ScrollText,
-    access: "admin",
     section: "club",
   },
 ];

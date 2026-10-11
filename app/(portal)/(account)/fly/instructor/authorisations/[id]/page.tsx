@@ -1,7 +1,19 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { AlertTriangle, ChevronLeft, Phone } from "lucide-react";
+import {
+  AlertTriangle,
+  ChevronLeft,
+  CircleCheck,
+  CircleX,
+  Clock,
+  History,
+  MessageSquare,
+  PenLine,
+  Phone,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 
 import {
   AnswerSections,
@@ -65,13 +77,18 @@ export default async function ApprovalPage({
     medical_expiry: medical,
   };
 
-  const issues = collectIssues(
+  // Currency is shown in its own tiles, so only unticked items are listed here.
+  const unconfirmed = collectIssues(
     authorisation.template_snapshot,
     authorisation.answers,
-    expiryByKey,
+    {},
   );
   const hasExpiredCurrency =
     bfr.state === "expired" || medical.state === "expired";
+  const allClear =
+    unconfirmed.length === 0 &&
+    bfr.state !== "expired" &&
+    medical.state !== "expired";
   const isActionable = ["submitted", "pending"].includes(authorisation.status);
   const canArchive =
     user.profile.role === "admin" &&
@@ -91,153 +108,226 @@ export default async function ApprovalPage({
   const formName = getAuthorisationFormName(authorisation.template_snapshot);
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 pb-28 sm:px-6 lg:px-8 lg:pb-16">
-      <Link
-        href="/fly/instructor"
-        className="-ml-1 inline-flex items-center gap-1 rounded-md px-1 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" aria-hidden />
-        Review queue
-      </Link>
+    <div className="-my-8 flex-1 bg-muted/70 py-6 md:-my-10 md:py-8">
+      <div className="mx-auto w-full max-w-6xl px-4 pb-28 sm:px-6 lg:px-8 lg:pb-16">
+        <Link
+          href="/fly/instructor"
+          className="-ml-1 inline-flex items-center gap-1 rounded-md px-1 py-1 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" aria-hidden />
+          Review queue
+        </Link>
 
-      <ReviewStatusProvider status={authorisation.status}>
-      <article className="mt-5">
-      <header className="relative">
-        <div className="absolute top-0 right-0 flex items-center gap-2">
-          {canArchive && (
-            <ReviewArchiveButton authorisationId={authorisation.id} />
-          )}
-          <ReviewStatusBadge />
-        </div>
-        <h1 className="pr-36 text-2xl leading-tight font-semibold tracking-[-0.025em] sm:pr-44 sm:text-[1.75rem]">
-          {authorisation.pilot_name}
-        </h1>
-        <p className="mt-3 text-base">{formName}</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {[
-            licence,
-            authorisation.is_guest ? "Guest" : null,
-            authorisation.reference,
-            formatDateTime(authorisation.submitted_at),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-          {authorisation.pilot_phone ? (
-            <>
-              {" · "}
-              <a
-                href={`tel:${authorisation.pilot_phone}`}
-                className="text-foreground underline decoration-foreground/25 underline-offset-4 hover:decoration-foreground"
-              >
-                <Phone className="mr-1 inline size-3.5 align-[-2px]" />
-                Call
-              </a>
-            </>
-          ) : null}
-        </p>
-
-        <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-foreground/10 pt-6 sm:grid-cols-4">
-          <Fact label="Aircraft" value={registration} detail={aircraftType} mono />
-          <Fact
-            label="Date"
-            value={formatDate(authorisation.flight_date, "EEE d MMM")}
-          />
-          <Fact label="Exercise" value={authorisation.exercise ?? "—"} />
-          <Fact label="Instructor" value={instructorName} />
-        </dl>
-
-        <p className="mt-5 text-sm text-muted-foreground">
-          <CurrencyNote label="BFR" info={bfr} />
-          <span className="mx-2.5 text-foreground/20">·</span>
-          <CurrencyNote label="Medical" info={medical} />
-        </p>
-
-        {issues.length > 0 && (
-          <div className="mt-4 flex gap-2 text-sm text-destructive">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-            <div className="space-y-1">
-              {issues.map((issue) => (
-                <p key={issue}>{issue}</p>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {isActionable && (
-          <DecisionBar
-            authorisationId={authorisation.id}
-            pilotName={authorisation.pilot_name}
-            hasExpiredCurrency={hasExpiredCurrency}
-            canApprove={isActionable}
-          />
-        )}
-      </header>
-
-      <div className="mt-10 border-t border-foreground/10 pt-10">
-        <AnswerSections
-          template={authorisation.template_snapshot}
-          answers={authorisation.answers}
-          sources={sources}
-          expiryByKey={expiryByKey}
-          variant="plain"
-        />
-
-        {signatureUrl && (
-          <section className="mt-10">
-            <h2 className="border-b border-foreground/15 pb-2 text-sm font-semibold">
-              Signature
-            </h2>
-            <div className="relative mt-4 h-20 max-w-xs">
-              <Image
-                src={signatureUrl}
-                alt={`Signature of ${authorisation.pilot_name}`}
-                fill
-                unoptimized
-                className="object-contain object-left"
-              />
-            </div>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Signed {formatDateTime(authorisation.signed_at)}
-            </p>
-          </section>
-        )}
-
-        <section className="mt-10">
-          <h2 className="border-b border-foreground/15 pb-2 text-sm font-semibold">
-            Comments
-          </h2>
-          <div className="mt-4">
-            <CommentBox
-              authorisationId={authorisation.id}
-              comments={comments}
-              canPostInternal={user.profile.role !== "member"}
-              plain
-            />
-          </div>
-        </section>
-
-        {activity.length > 0 && (
-          <section className="mt-10">
-            <h2 className="border-b border-foreground/15 pb-2 text-sm font-semibold">
-              Activity
-            </h2>
-            <ol className="mt-4 space-y-4">
-              {activity.map((entry) => (
-                <li key={entry.id}>
-                  <p className="text-sm">{entry.summary}</p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {formatRelative(entry.created_at)}
-                    {entry.actor_label ? ` · ${entry.actor_label}` : ""}
+        <ReviewStatusProvider status={authorisation.status}>
+          <article className="mt-4 flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,1fr)_21rem] lg:items-start lg:gap-6">
+            <header className="order-1 rounded-2xl bg-card p-6 shadow-soft ring-1 ring-foreground/[0.04] sm:p-7 lg:col-start-1 lg:row-start-1">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <h1 className="text-2xl leading-tight font-semibold tracking-[-0.025em] sm:text-[1.75rem]">
+                      {authorisation.pilot_name}
+                    </h1>
+                    <ReviewStatusBadge />
+                  </div>
+                  <p className="mt-1.5 text-[15px] text-muted-foreground">
+                    {formName}
                   </p>
-                </li>
-              ))}
-            </ol>
-          </section>
-        )}
+                  <p className="mt-1 text-[13px] text-muted-foreground/80">
+                    {[
+                      licence,
+                      authorisation.is_guest ? "Guest" : null,
+                      authorisation.reference,
+                      `Submitted ${formatDateTime(authorisation.submitted_at)}`,
+                    ]
+                      .filter(Boolean)
+                      .join("  ·  ")}
+                  </p>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-1">
+                  {authorisation.pilot_phone && (
+                    <a
+                      href={`tel:${authorisation.pilot_phone}`}
+                      aria-label={`Call ${authorisation.pilot_name}`}
+                      className="inline-flex h-8 items-center gap-1.5 rounded-full bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                    >
+                      <Phone className="size-3.5" aria-hidden />
+                      <span className="hidden sm:inline">Call</span>
+                    </a>
+                  )}
+                  {canArchive && (
+                    <ReviewArchiveButton authorisationId={authorisation.id} />
+                  )}
+                </div>
+              </div>
+
+              <dl className="mt-7 grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4">
+                <Fact label="Aircraft" value={registration} detail={aircraftType} />
+                <Fact
+                  label="Flight date"
+                  value={formatDate(authorisation.flight_date, "EEE d MMM")}
+                />
+                <Fact label="Exercise" value={authorisation.exercise ?? "—"} />
+                <Fact label="Instructor" value={instructorName} />
+              </dl>
+            </header>
+
+            <aside className="contents lg:sticky lg:top-[calc(var(--header-height)+1.5rem)] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:flex lg:flex-col lg:gap-6">
+              <Panel
+                icon={ShieldCheck}
+                title="Pre-flight checks"
+                className="order-2"
+              >
+                <div className="grid grid-cols-2 gap-2.5">
+                  <CurrencyTile
+                    label="BFR"
+                    info={bfr}
+                    date={authorisation.pilot_bfr_expiry}
+                  />
+                  <CurrencyTile
+                    label="Medical"
+                    info={medical}
+                    date={authorisation.pilot_medical_expiry}
+                  />
+                </div>
+
+                {unconfirmed.length > 0 ? (
+                  <div className="mt-3 rounded-xl bg-danger-muted px-3.5 py-3">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                      <AlertTriangle className="size-4" aria-hidden />
+                      {unconfirmed.length} item
+                      {unconfirmed.length === 1 ? "" : "s"} not confirmed
+                    </p>
+                    <ul className="mt-1.5 space-y-1 pl-5.5 text-[13px] text-destructive/90">
+                      {unconfirmed.map((issue) => (
+                        <li key={issue} className="list-disc">
+                          {issue.replace(/^Not confirmed — /, "")}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : allClear ? (
+                  <p className="mt-3 flex items-center gap-2 rounded-lg bg-success-muted px-3 py-2.5 text-sm font-medium text-success">
+                    <CircleCheck className="size-4" aria-hidden />
+                    All declarations confirmed
+                  </p>
+                ) : null}
+
+                {isActionable && (
+                  <DecisionBar
+                    authorisationId={authorisation.id}
+                    pilotName={authorisation.pilot_name}
+                    hasExpiredCurrency={hasExpiredCurrency}
+                    canApprove={isActionable}
+                  />
+                )}
+              </Panel>
+
+              {activity.length > 0 && (
+                <Panel icon={History} title="Activity" className="order-4">
+                  <ol className="relative space-y-4 before:absolute before:top-1.5 before:bottom-1.5 before:left-[5px] before:w-px before:bg-border">
+                    {activity.map((entry, index) => (
+                      <li key={entry.id} className="relative pl-6">
+                        <span
+                          aria-hidden
+                          className={cn(
+                            "absolute top-1.5 left-0 size-[11px] rounded-full border-2 border-card",
+                            index === 0 ? "bg-primary" : "bg-muted-foreground/40",
+                          )}
+                        />
+                        <p className="text-sm leading-snug">{entry.summary}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {formatRelative(entry.created_at)}
+                          {entry.actor_label ? ` · ${entry.actor_label}` : ""}
+                        </p>
+                      </li>
+                    ))}
+                  </ol>
+                </Panel>
+              )}
+            </aside>
+
+            <div className="order-3 flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-2 lg:gap-6">
+              <AnswerSections
+                template={authorisation.template_snapshot}
+                answers={authorisation.answers}
+                sources={sources}
+                expiryByKey={expiryByKey}
+                variant="plain"
+              />
+
+              {signatureUrl && (
+                <Panel icon={PenLine} title="Pilot signature">
+                  <div className="relative h-24 rounded-lg border border-dashed bg-muted/30">
+                    <Image
+                      src={signatureUrl}
+                      alt={`Signature of ${authorisation.pilot_name}`}
+                      fill
+                      unoptimized
+                      className="object-contain object-left p-3"
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Signed {formatDateTime(authorisation.signed_at)}
+                  </p>
+                </Panel>
+              )}
+
+              <Panel
+                icon={MessageSquare}
+                title="Comments"
+                action={
+                  comments.length > 0 ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
+                      {comments.length}
+                    </span>
+                  ) : null
+                }
+              >
+                <CommentBox
+                  authorisationId={authorisation.id}
+                  comments={comments}
+                  canPostInternal={user.profile.role !== "member"}
+                  plain
+                />
+              </Panel>
+            </div>
+          </article>
+        </ReviewStatusProvider>
       </div>
-      </article>
-      </ReviewStatusProvider>
     </div>
+  );
+}
+
+function Panel({
+  icon: Icon,
+  title,
+  action,
+  className,
+  children,
+}: {
+  icon: LucideIcon;
+  title: string;
+  action?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      className={cn(
+        "rounded-2xl bg-card p-5 shadow-soft ring-1 ring-foreground/[0.04]",
+        className,
+      )}
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <Icon className="size-4 text-muted-foreground" aria-hidden />
+          {title}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -245,44 +335,65 @@ function Fact({
   label,
   value,
   detail,
-  mono,
 }: {
   label: string;
   value: string;
   detail?: string | null;
-  mono?: boolean;
 }) {
   return (
     <div className="min-w-0">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          "mt-1 truncate text-[15px] font-medium",
-          mono && "font-mono",
-        )}
-      >
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-1 line-clamp-2 text-[15px] leading-snug font-medium break-words">
         {value}
       </dd>
       {detail ? (
-        <dd className="truncate text-sm text-muted-foreground">{detail}</dd>
+        <dd className="mt-0.5 truncate text-xs text-muted-foreground">
+          {detail}
+        </dd>
       ) : null}
     </div>
   );
 }
 
-function CurrencyNote({ label, info }: { label: string; info: ExpiryInfo }) {
+const CURRENCY_TONE: Record<ExpiryInfo["state"], string> = {
+  expired: "bg-danger-muted text-destructive",
+  expiring: "bg-warning-muted text-warning-foreground",
+  valid: "bg-success-muted text-success",
+  unknown: "bg-muted text-muted-foreground",
+};
+
+function CurrencyTile({
+  label,
+  info,
+  date,
+}: {
+  label: string;
+  info: ExpiryInfo;
+  date: string | null;
+}) {
+  const Icon =
+    info.state === "expired"
+      ? CircleX
+      : info.state === "expiring"
+        ? AlertTriangle
+        : info.state === "valid"
+          ? CircleCheck
+          : Clock;
+
   return (
-    <span>
-      {label}{" "}
-      <span
-        className={cn(
-          "text-foreground",
-          info.state === "expired" && "text-destructive",
-          info.state === "expiring" && "font-medium text-warning-foreground",
-        )}
-      >
-        {info.label}
-      </span>
-    </span>
+    <div className={cn("rounded-xl px-3.5 py-3", CURRENCY_TONE[info.state])}>
+      <div className="flex items-center gap-1.5">
+        <Icon className="size-3.5" aria-hidden />
+        <span className="text-xs font-medium">{label}</span>
+      </div>
+      <p className="mt-1.5 text-sm leading-tight font-semibold">
+        {info.state === "expired" ? `Expired ${info.label}` : info.label}
+      </p>
+      {date && (
+        <p className="mt-0.5 text-xs opacity-75">
+          {formatDate(date, "d MMM yyyy")}
+        </p>
+      )}
+    </div>
   );
 }

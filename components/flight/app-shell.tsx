@@ -16,8 +16,9 @@ interface AppShellProps {
 }
 
 /**
- * The portal chrome. One sidebar for every page so Home, flights, the
- * briefing-room TV and club admin read as one product.
+ * The portal chrome: a full-height navigation sidebar, and a top bar over the
+ * page with the club logo and account menu. One shell for every page so
+ * Home, flights and club admin read as one product.
  */
 export function AppShell({
   role,
@@ -31,24 +32,21 @@ export function AppShell({
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "15.5rem",
-          "--sidebar-width-icon": "4rem",
-          "--header-height": "3.25rem",
+          "--sidebar-width": "15rem",
+          "--sidebar-width-icon": "3.75rem",
+          "--header-height": "3.5rem",
         } as React.CSSProperties
       }
     >
-      <AppSidebar
-        flightRole={role}
-        safetyAdmin={safetyAdmin}
-        user={user}
-        companyName={companyName}
-        logoUrl={logoUrl}
-      />
+      <AppSidebar flightRole={role} safetyAdmin={safetyAdmin} />
       <SidebarInset className="min-w-0 bg-background">
-        <SiteHeader companyName={companyName} />
-        <div className="@container/main flex flex-1 flex-col py-6 md:py-8">
-          {children}
-        </div>
+        <SiteHeader
+          companyName={companyName}
+          logoUrl={logoUrl}
+          user={user ? { name: user.name ?? "Club member", email: user.email } : null}
+          showProfile={role !== null}
+        />
+        <div className="@container/main flex flex-1 flex-col py-8 md:py-10">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );
