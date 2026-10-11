@@ -21,7 +21,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/flight/utils";
 
-export type DatePickerMode = "flight" | "expiry";
+export type DatePickerMode = "flight" | "expiry" | "published";
 
 interface DatePickerProps {
   id?: string;
@@ -66,6 +66,14 @@ function rangeForMode(mode: DatePickerMode) {
     return {
       startMonth: startOfMonth(new Date(year - 2, 0)),
       endMonth: endOfMonth(new Date(year + 6, 11)),
+      defaultMonth: now,
+    };
+  }
+
+  if (mode === "published") {
+    return {
+      startMonth: startOfMonth(new Date(year - 10, 0)),
+      endMonth: endOfMonth(new Date(year + 1, 11)),
       defaultMonth: now,
     };
   }
@@ -189,20 +197,22 @@ export function DatePicker({
         className="w-full [--cell-size:--spacing(11)] sm:[--cell-size:--spacing(9)]"
       />
 
-      {mode === "flight" && (
+      {mode === "flight" || mode === "published" ? (
         <div className="flex flex-wrap gap-2 px-1 pb-1">
           <QuickChip
             label="Today"
             active={value === toValue(today)}
             onClick={() => selectDate(today)}
           />
-          <QuickChip
-            label="Tomorrow"
-            active={value === toValue(tomorrow)}
-            onClick={() => selectDate(tomorrow)}
-          />
+          {mode === "flight" ? (
+            <QuickChip
+              label="Tomorrow"
+              active={value === toValue(tomorrow)}
+              onClick={() => selectDate(tomorrow)}
+            />
+          ) : null}
         </div>
-      )}
+      ) : null}
 
       {clearable && selected ? (
         <div className="px-1 pb-1">

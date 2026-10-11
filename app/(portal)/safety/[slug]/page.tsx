@@ -50,7 +50,7 @@ export default async function SafetyArticlePage({ params }: { params: Params }) 
     .map(toArticleSummary);
 
   return (
-    <Page width="narrow" className="gap-10">
+    <Page className="gap-10">
       <article className="flex flex-col gap-8">
         <header className="flex flex-col gap-5">
           <div className="flex items-center justify-between gap-3">
