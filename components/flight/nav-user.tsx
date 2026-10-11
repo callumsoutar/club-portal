@@ -46,22 +46,22 @@ export function NavUser({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="h-11 gap-2.5 rounded-lg px-1.5 data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground group-data-[collapsible=icon]:rounded-lg"
             >
-              <Avatar className="h-8 w-8 rounded-full">
-                <AvatarFallback className="rounded-full bg-sidebar-accent text-[11px] font-semibold text-sidebar-foreground">
+              <Avatar className="size-8 shrink-0 rounded-full group-data-[collapsible=icon]:size-7">
+                <AvatarFallback className="rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                   {fallback}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium text-sidebar-foreground">
+              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate font-medium text-sidebar-accent-foreground">
                   {user.name}
                 </span>
-                <span className="truncate text-xs text-sidebar-foreground/50">
+                <span className="truncate text-xs text-muted-foreground">
                   {user.email}
                 </span>
               </div>
-              <EllipsisVerticalIcon className="ml-auto size-4 text-sidebar-foreground/50" />
+              <EllipsisVerticalIcon className="ml-auto size-4 text-muted-foreground group-data-[collapsible=icon]:hidden" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -72,8 +72,8 @@ export function NavUser({
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-full">
-                  <AvatarFallback className="rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                <Avatar className="size-8 rounded-full">
+                  <AvatarFallback className="rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
                     {fallback}
                   </AvatarFallback>
                 </Avatar>

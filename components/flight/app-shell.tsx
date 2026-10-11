@@ -1,6 +1,6 @@
 "use client";
 
-import { AppSidebar } from "@/components/flight/app-sidebar";
+import { AppSidebar, type ShellUser } from "@/components/flight/app-sidebar";
 import { SiteHeader } from "@/components/flight/site-header";
 import { SidebarInset, SidebarProvider } from "@/components/flight/ui/sidebar";
 import type { AppRole } from "@/lib/flight/types";
@@ -8,34 +8,46 @@ import type { AppRole } from "@/lib/flight/types";
 interface AppShellProps {
   role: AppRole | null;
   safetyAdmin: boolean;
-  name: string | null;
-  email: string;
+  /** Null for signed-out visitors, who get the public nav and a sign-in action. */
+  user: ShellUser | null;
+  companyName: string;
+  logoUrl: string | null;
   children: React.ReactNode;
 }
 
 /**
- * Signed-in chrome — dark navy sidebar, light workspace, matching the
- * dashboard-01 structure with a Moses-style colour split.
+ * The portal chrome. One sidebar for every page so Home, flights, the
+ * briefing-room TV and club admin read as one product.
  */
-export function AppShell({ role, safetyAdmin, name, email, children }: AppShellProps) {
+export function AppShell({
+  role,
+  safetyAdmin,
+  user,
+  companyName,
+  logoUrl,
+  children,
+}: AppShellProps) {
   return (
     <SidebarProvider
       style={
         {
-          "--sidebar-width": "16.5rem",
+          "--sidebar-width": "15.5rem",
+          "--sidebar-width-icon": "4rem",
           "--header-height": "3.25rem",
         } as React.CSSProperties
       }
     >
-      <AppSidebar flightRole={role} safetyAdmin={safetyAdmin} name={name} email={email} />
-      <SidebarInset className="min-w-0 bg-muted">
-        <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <div className="@container/main flex flex-1 flex-col gap-2">
-            <div className="flex flex-1 flex-col gap-5 py-5 md:gap-6 md:py-6">
-              {children}
-            </div>
-          </div>
+      <AppSidebar
+        flightRole={role}
+        safetyAdmin={safetyAdmin}
+        user={user}
+        companyName={companyName}
+        logoUrl={logoUrl}
+      />
+      <SidebarInset className="min-w-0 bg-background">
+        <SiteHeader companyName={companyName} />
+        <div className="@container/main flex flex-1 flex-col py-6 md:py-8">
+          {children}
         </div>
       </SidebarInset>
     </SidebarProvider>

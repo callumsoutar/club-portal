@@ -94,7 +94,7 @@ export function FormBuilder({ template }: { template: FormTemplate }) {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-col gap-4 border-b border-foreground/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2.5">
             <TemplateNameEditor
@@ -118,7 +118,7 @@ export function FormBuilder({ template }: { template: FormTemplate }) {
             name={template.name}
             description={template.description}
           />
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-1.5 text-[15px] text-muted-foreground">
             v{template.version}
             {template.is_active
               ? " · Live for new authorisations"
@@ -263,9 +263,9 @@ function TemplateNameEditor({
       className="group inline-flex min-w-0 max-w-full items-center gap-2 rounded-lg text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
       title="Click to rename"
     >
-      <h2 className="truncate text-[1.75rem] leading-none font-semibold tracking-[-0.03em]">
+      <h1 className="truncate text-2xl font-semibold tracking-[-0.025em] sm:text-[1.75rem] sm:leading-tight">
         {name}
-      </h2>
+      </h1>
       <Pencil className="size-4 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-muted-foreground" />
     </button>
   );

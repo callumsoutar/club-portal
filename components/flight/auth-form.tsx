@@ -111,7 +111,13 @@ export function AuthForm({
     }
 
     // Honour the `next` param the proxy set, so a deep link survives sign-in.
-    const next = searchParams.get("next") ?? "/fly";
+    const requested = searchParams.get("next");
+    const next =
+      requested?.startsWith("/") &&
+      !requested.startsWith("//") &&
+      !requested.includes("\\")
+        ? requested
+        : "/";
     router.push(next);
     router.refresh();
   }
@@ -123,7 +129,7 @@ export function AuthForm({
     >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-2xl font-semibold tracking-tight">
             {isSignup
               ? "Create your account"
               : staffOnly
@@ -132,7 +138,7 @@ export function AuthForm({
           </h1>
           <p className="text-sm text-balance text-muted-foreground">
             {isSignup
-              ? "Then your next authorisation takes about thirty seconds."
+              ? "Your pilot details are saved, so your next authorisation fills itself in."
               : staffOnly
                 ? "Instructors and admins only. Pilots authorise as guests."
                 : "Sign in to see your history and skip the form filling."}
@@ -140,7 +146,6 @@ export function AuthForm({
         </div>
 
         <GoogleSignInButton
-          variant="flight"
           nextPath={searchParams.get("next") ?? undefined}
           onError={(message) => toast.error(message)}
         />
@@ -153,7 +158,7 @@ export function AuthForm({
               id="full_name"
               autoComplete="name"
               placeholder="Alex Whitfield"
-              className="h-11 bg-background"
+              className="h-11"
               aria-invalid={Boolean(errors.full_name)}
               {...register("full_name")}
             />
@@ -168,7 +173,7 @@ export function AuthForm({
             type="email"
             autoComplete="email"
             placeholder="you@example.com"
-            className="h-11 bg-background"
+            className="h-11"
             aria-invalid={Boolean(errors.email)}
             {...register("email")}
           />
@@ -181,7 +186,7 @@ export function AuthForm({
             id="password"
             type="password"
             autoComplete={isSignup ? "new-password" : "current-password"}
-            className="h-11 bg-background"
+            className="h-11"
             aria-invalid={Boolean(errors.password)}
             {...register("password")}
           />

@@ -1,126 +1,101 @@
 # SafetyHub
 
-A public-facing safety information platform for aero clubs and flight schools. The first release is a site for Kapiti Aero Club, with a homepage, message archive, article view and clubhouse TV slideshow. Club name and logo are configured in admin settings.
+The member portal for Kapiti Aero Club. One app, one navigation shell, covering:
 
-The public website does not require authentication.
+- **Flight authorisation**: pilots submit an authorisation before they fly, and instructors review and approve it.
+- **Safety Hub**: the club's library of safety articles, with topic browsing, search, and shareable article links.
+- **Club admin**: fleet, instructors, the form builder, club settings, the audit log, and the article editor.
+- **Briefing room TV**: a full-screen slideshow of published safety articles for the clubhouse display.
+
+The club name and logo come from club settings (`/admin/settings`).
+
+## Who can see what
+
+Access is enforced on the server in layouts, pages, and server actions, and by Supabase RLS. The sidebar only reflects those rules; it does not enforce them.
+
+| Area | Who |
+| --- | --- |
+| Home (`/`), Safety Hub (`/safety`), Authorise a flight (`/authorise`), tracking links (`/a/[token]`) | Everyone, including guests without an account |
+| My flights, profile and currency (`/fly`, `/fly/profile`) | Signed-in pilots |
+| Review queue (`/fly/instructor`) | Instructors and flight admins |
+| Fleet, instructors, form builder, audit log | Flight admins (`profiles.role = 'admin'`) |
+| Article editor (`/admin`), Briefing room TV (`/tv`) | Safety admins (`user_roles`) |
+| Club settings | Flight admins and safety admins |
+
+If a club turns off member login, members are sent to `/authorise`. Guests can still submit and track authorisations.
 
 ## Stack
 
-- Next.js 16 (App Router) and React 19
-- TypeScript
-- Tailwind CSS 4
-- shadcn/ui (Base UI / `base-nova` style)
-- Lucide icons
-- Supabase (client foundations only; no schema yet)
+- Next.js 16 (App Router) and React 19, TypeScript
+- Tailwind CSS 4 and shadcn/ui
+- Supabase (Auth, Postgres with RLS, Storage) via `@supabase/ssr`
+- React Hook Form and Zod for the authorisation wizard, TanStack Query on the client
+- Resend for notification email
 
 ## Project structure
 
 ```text
 app/
-  layout.tsx          Root layout, metadata and Vercel Analytics
-  page.tsx            Public homepage, archive, article and slideshow UI
-  globals.css         Theme tokens and v0 screenshot-faithful styles
-components/ui/        shadcn/ui primitives (Button is present, unused by the homepage)
-lib/utils.ts          `cn()` class helper
-lib/supabase/         Browser and server Supabase clients
-public/               Icons, placeholders and the aviation safety image
+  (portal)/                 Everything inside the shared sidebar shell
+    layout.tsx              Resolves the viewer once and renders the shell
+    page.tsx                Home
+    safety/                 Safety Hub index and article pages
+    authorise/page.tsx      Form picker
+    (account)/              Pages that need a signed-in user (gated in layout.tsx)
+      fly/                  My flights, profile, instructor review queue
+      admin/                Club admin and the article editor
+  authorise/[id]/           Full-screen authorisation wizard (public)
+  authorise/submitted/      Submission confirmation
+  a/[token]/                Public tracking page for a submitted authorisation
+  login/, signup/, auth/    Authentication
+  tv/                       Briefing room slideshow
+components/
+  portal/                   Page layout primitives (Page, PageHeader, SectionHeading)
+  safety/                   Safety Hub list and browser
+  flight/                   App shell, navigation, wizard, admin managers, ui/ primitives
+lib/
+  portal/viewer.ts          Who is looking: session, role, safety admin, club settings
+  flight/nav.ts             Navigation definition and role filtering
+  flight/                   Authorisation queries, actions, auth helpers
+  supabase/                 Supabase clients and session proxy
+proxy.ts                    Refreshes the session; sends signed-out users away from /fly and /admin
+supabase/migrations/        Database schema and RLS policies
 ```
 
-The current UI lives in a single client page with in-memory mock messages. That is intentional: the v0 design is preserved so routes, data fetching and admin can be added without a redesign.
+## Getting started
 
-Suggested future layout (not created yet):
-
-- `app/` — public pages
-- `app/admin/` — authenticated content management
-- `app/tv/` — dedicated slideshow route
-- `app/messages/[slug]/` — individual message pages
-
-## Requirements
-
-- Node.js 20+
-- pnpm (the repo is locked to `pnpm@12.3.4`; pnpm 11+ also works)
-
-## Install
+Requirements: Node.js 20.9 or later (24 LTS recommended) and pnpm (the repo pins `pnpm@12.3.4`).
 
 ```bash
 pnpm install
-```
-
-Copy the environment template if you are connecting Supabase:
-
-```bash
-cp .env.example .env.local
-```
-
-The app runs without Supabase credentials while it still uses mock data.
-
-## Local development
-
-```bash
+cp .env.example .env.local   # then fill in the values below
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
 ```bash
-pnpm lint        # ESLint (Next.js 16 no longer provides `next lint`)
+pnpm lint        # ESLint
 pnpm typecheck   # TypeScript
 pnpm build       # Production build
 pnpm start       # Serve the production build
 ```
 
-`npm run dev`, `npm run build`, `npm run start` and `npm run lint` also work if the scripts are run from this directory after `pnpm install`.
-
 ## Environment variables
 
-| Name | Required now | Notes |
+| Name | Required | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | No | Project URL from the Supabase Connect dialog |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | No | Publishable key (`sb_publishable_...`). Safe in the browser. Never use a secret or service-role key here. |
-| `SUPABASE_SECRET_KEY` | No | Optional, server-only, for later admin jobs. Keep it commented until needed. |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Yes | Publishable key (`sb_publishable_...`). Safe in the browser. |
+| `SUPABASE_SECRET_KEY` | Yes, for authorisations | Server-only. Used for authorisation writes and notifications. Never prefix with `NEXT_PUBLIC_`. |
+| `NEXT_PUBLIC_APP_URL` | Yes in production | Absolute URL used in notification links |
+| `RESEND_API_KEY` | No | When unset, notification emails are logged instead of sent |
+| `RESEND_FROM_EMAIL` | No | Sender address for notifications |
 
 `.env.local` is gitignored. Do not commit real credentials.
 
-## Supabase
+## Working on the database
 
-Clients follow the current `@supabase/ssr` App Router pattern:
+Schema and policies live in `supabase/migrations/`. Every public table has RLS enabled. The Safety Hub is readable anonymously; flight authorisation data is not, apart from the security-definer lookup behind `/a/[token]`.
 
-- `lib/supabase/client.ts` — browser client
-- `lib/supabase/server.ts` — server client (Server Components, Server Actions, Route Handlers)
-- `lib/supabase/env.ts` — reads public env vars and fails clearly if they are missing when a client is created
-
-No auth proxy, login flow or database schema has been added. The homepage does not import these clients, so missing credentials do not break local development.
-
-When a SafetyHub Supabase project exists:
-
-1. Create the project in the [Supabase dashboard](https://supabase.com/dashboard).
-2. Copy the project URL and publishable key into `.env.local`.
-3. Generate types:
-
-   ```bash
-   pnpm dlx supabase gen types typescript --project-id <project-id> > lib/supabase/database.types.ts
-   ```
-
-4. Add tables and storage later, with RLS enabled on every public table.
-
-Do not point this app at an existing unrelated project (for example `flight-desk`) without an explicit decision.
-
-### Cursor Supabase MCP
-
-The Supabase MCP connector is already available in Cursor and can list your account's projects. Use it to inspect schema, run SQL and generate types once a SafetyHub project exists.
-
-If tools are missing in a new machine:
-
-1. Confirm the Supabase plugin is enabled.
-2. Authenticate the MCP server when Cursor prompts for OAuth.
-3. Reload the agent session.
-
-Do not apply migrations or delete database objects through MCP without reviewing them first.
-
-## Notes on the v0 export
-
-- Package manager is pnpm (`pnpm-lock.yaml`).
-- shadcn/ui is configured in `components.json` with style `base-nova` and Tailwind v4 CSS variables.
-- The homepage is one `'use client'` page; article and slideshow views are client-side state, not separate routes.
-- `components/ui/button.tsx` is installed but unused by the current page.
-- `next.config.mjs` leaves images unoptimized, matching the v0 export.
+Review migrations before applying them, and don't apply or delete database objects through MCP tooling without checking them first.

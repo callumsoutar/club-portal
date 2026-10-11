@@ -74,12 +74,12 @@ export function InstructorManager({
 
   return (
     <>
-      <header className="flex flex-col gap-4 border-b border-foreground/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-[1.75rem] leading-none font-semibold tracking-[-0.03em]">
+          <h1 className="text-2xl font-semibold tracking-[-0.025em] sm:text-[1.75rem] sm:leading-tight">
             Instructors
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          </h1>
+          <p className="mt-1.5 text-[15px] text-muted-foreground">
             Only active instructors appear in the approval dropdown.
           </p>
         </div>

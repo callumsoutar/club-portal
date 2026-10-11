@@ -1,11 +1,10 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  ClipboardList,
+  ClipboardCheck,
   House,
-  LayoutDashboard,
+  ListChecks,
   Megaphone,
   Plane,
-  PlusCircle,
   ScrollText,
   Settings,
   Tv,
@@ -16,8 +15,18 @@ import {
 
 import type { AppRole } from "@/lib/flight/types";
 
-export type NavSection = "fly" | "authorisations" | "safety" | "club";
-export type NavAccess = AppRole | "safety" | "club" | "any";
+export type NavSection = "home" | "flying" | "safety" | "club";
+
+/**
+ * Who can see a nav item. This only controls visibility: every destination
+ * enforces its own access on the server.
+ *
+ * - `public`: everyone, including signed-out visitors
+ * - `member` / `instructor` / `admin`: minimum flight role
+ * - `safety`: safety editors (`user_roles.admin`), including the briefing-room TV
+ * - `club`: safety editors or flight admins
+ */
+export type NavAccess = "public" | AppRole | "safety" | "club";
 
 export interface NavItem {
   href: string;
@@ -32,52 +41,47 @@ export interface NavAccessContext {
   safetyAdmin: boolean;
 }
 
-export const NAV_SECTION_LABELS: Record<NavSection, string> = {
-  fly: "Flying",
-  authorisations: "Authorisations",
+export const NAV_SECTION_LABELS: Record<NavSection, string | null> = {
+  home: null,
+  flying: "Flying",
   safety: "Safety",
-  club: "Club",
+  club: "Club admin",
 };
 
+const SECTION_ORDER: NavSection[] = ["home", "flying", "safety", "club"];
+
+export const AUTHORISE_NAV = {
+  href: "/authorise",
+  title: "Authorise a flight",
+  icon: ClipboardCheck,
+} as const;
+
 export const APP_NAV: NavItem[] = [
+  { href: "/", title: "Home", icon: House, access: "public", section: "home" },
   {
     href: "/fly",
     title: "My flights",
-    icon: LayoutDashboard,
+    icon: Plane,
     access: "member",
-    section: "fly",
-  },
-  {
-    href: "/authorise",
-    title: "New authorisation",
-    icon: PlusCircle,
-    access: "member",
-    section: "fly",
+    section: "flying",
   },
   {
     href: "/fly/instructor",
-    title: "Authorisations",
-    icon: ClipboardList,
+    title: "Review queue",
+    icon: ListChecks,
     access: "instructor",
-    section: "authorisations",
-  },
-  {
-    href: "/",
-    title: "Safety Hub",
-    icon: House,
-    access: "any",
-    section: "safety",
+    section: "flying",
   },
   {
     href: "/admin",
-    title: "Messages",
+    title: "Manage articles",
     icon: Megaphone,
     access: "safety",
     section: "safety",
   },
   {
     href: "/tv",
-    title: "TV display",
+    title: "Briefing room TV",
     icon: Tv,
     access: "safety",
     section: "safety",
@@ -132,59 +136,42 @@ const ROLE_RANK: Record<AppRole, number> = {
 };
 
 export function canAccessNav(item: NavItem, access: NavAccessContext) {
-  if (item.access === "any") return Boolean(access.role) || access.safetyAdmin;
+  if (item.access === "public") return true;
   if (item.access === "club") return access.safetyAdmin || access.role === "admin";
   if (item.access === "safety") return access.safetyAdmin;
   if (!access.role) return false;
   return ROLE_RANK[access.role] >= ROLE_RANK[item.access];
 }
 
-export function navForAccess(access: NavAccessContext) {
-  return APP_NAV.filter((item) => canAccessNav(item, access));
-}
-
 export function navSections(access: NavAccessContext) {
-  const items = navForAccess(access);
-  return (["fly", "authorisations", "safety", "club"] as const)
-    .map((key) => ({
-      key,
-      label: NAV_SECTION_LABELS[key],
-      items: items.filter((item) => item.section === key),
-    }))
-    .filter((section) => section.items.length > 0);
+  const items = APP_NAV.filter((item) => canAccessNav(item, access));
+  return SECTION_ORDER.map((key) => ({
+    key,
+    label: NAV_SECTION_LABELS[key],
+    items: items.filter((item) => item.section === key),
+  })).filter((section) => section.items.length > 0);
 }
 
 export function isNavActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
-  if (href === "/fly/instructor") {
-    return (
-      pathname === "/fly/instructor" ||
-      pathname.startsWith("/fly/instructor/queue") ||
-      pathname.startsWith("/fly/instructor/authorisations/")
-    );
-  }
   if (href === "/fly") return pathname === "/fly";
   if (href === "/admin") {
     return pathname === "/admin" || pathname.startsWith("/admin/messages");
   }
-  if (href === "/tv") return pathname === "/tv" || pathname.startsWith("/tv?");
+  if (href === "/admin/settings") {
+    return (
+      pathname.startsWith("/admin/settings") ||
+      pathname.startsWith("/admin/flight-settings")
+    );
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** Compact title for the site header, derived from the current route. */
+/** Title for the site header, taken from the nav item that owns the route. */
 export function pageTitleFromPath(pathname: string): string {
-  if (pathname.startsWith("/fly/instructor/authorisations/")) return "Review";
-  if (pathname.startsWith("/fly/instructor")) return "Authorisations";
-  if (pathname.startsWith("/admin/messages")) return "Messages";
-  if (pathname.startsWith("/admin/settings") || pathname.startsWith("/admin/flight-settings")) {
-    return "Club settings";
-  }
-  if (pathname.startsWith("/admin/fleet")) return "Fleet";
-  if (pathname.startsWith("/admin/instructors")) return "Instructors";
-  if (pathname.startsWith("/admin/form-builder")) return "Form builder";
-  if (pathname.startsWith("/admin/audit")) return "Audit log";
-  if (pathname === "/admin") return "Messages";
-  if (pathname.startsWith("/fly/profile")) return "Profile";
-  if (pathname.startsWith("/fly")) return "My flights";
-  return "FlightAuth";
+  if (isNavActive(pathname, PROFILE_NAV.href)) return PROFILE_NAV.title;
+  if (isNavActive(pathname, AUTHORISE_NAV.href)) return AUTHORISE_NAV.title;
+  if (pathname === "/safety" || pathname.startsWith("/safety/")) return "Safety Hub";
+  const item = APP_NAV.find((entry) => isNavActive(pathname, entry.href));
+  return item?.title ?? "";
 }

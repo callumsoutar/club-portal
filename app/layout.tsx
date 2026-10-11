@@ -1,19 +1,22 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Providers } from '@/components/flight/providers'
 import { getCompanySettings } from '@/lib/get-company-settings'
+
+const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans', display: 'swap' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono', display: 'swap' })
 
 export async function generateMetadata(): Promise<Metadata> {
   const { companyName } = await getCompanySettings()
 
   return {
     title: {
-      default: `Safety Hub · ${companyName}`,
+      default: companyName,
       template: `%s · ${companyName}`,
     },
-    description: `A central place for the latest ${companyName} safety messages and practical flying reminders.`,
-    generator: 'v0.app',
+    description: `The ${companyName} member portal: flight authorisations and the club Safety Hub.`,
     icons: {
       icon: [
         {
@@ -35,11 +38,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
+  colorScheme: 'light',
+  themeColor: '#fcfcfd',
 }
 
 export default function RootLayout({
@@ -48,8 +48,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className="antialiased">
+    <html
+      lang="en-NZ"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      data-scroll-behavior="smooth"
+    >
+      <body className="bg-background font-sans text-foreground antialiased">
         <Providers>{children}</Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
