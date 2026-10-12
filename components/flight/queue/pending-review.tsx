@@ -52,6 +52,7 @@ import {
   AnswerSections,
   collectIssues,
 } from "@/components/flight/authorisation/answer-sections";
+import { reviewQuantityIssues, type FlightFigures } from "@/lib/flight/endurance";
 import { type DataSources } from "@/lib/flight/form-engine";
 import {
   formatDate,
@@ -74,6 +75,8 @@ interface PendingReviewProps {
   items: PendingItem[];
   /** Full rosters (including inactive) so historical answers still resolve. */
   sources: DataSources;
+  /** Club reserve, in minutes, used for safe endurance. */
+  reserveMinutes: number;
   /** Archive is admin-only. */
   canArchive?: boolean;
 }
@@ -87,6 +90,7 @@ interface PendingReviewProps {
 export function PendingReview({
   items,
   sources,
+  reserveMinutes,
   canArchive = false,
 }: PendingReviewProps) {
   const router = useRouter();
@@ -222,6 +226,7 @@ export function PendingReview({
               key={selected.id}
               item={selected}
               sources={sources}
+              reserveMinutes={reserveMinutes}
               onDone={close}
             />
           )}
@@ -234,10 +239,12 @@ export function PendingReview({
 function ReviewPanel({
   item,
   sources,
+  reserveMinutes,
   onDone,
 }: {
   item: PendingItem;
   sources: DataSources;
+  reserveMinutes: number;
   onDone: () => void;
 }) {
   const [pending, setPending] = useState<"approve" | "decline" | null>(null);
@@ -253,11 +260,16 @@ function ReviewPanel({
     medical_expiry: medical,
   };
 
-  const issues = collectIssues(
-    item.template_snapshot,
-    item.answers,
-    expiryByKey,
-  );
+  const flightFigures: FlightFigures = {
+    fuelBurnLph: item.aircraft?.fuel_burn_lph ?? null,
+    minOilQuarts: item.aircraft?.min_oil_quarts ?? null,
+    reserveMinutes,
+  };
+
+  const issues = [
+    ...collectIssues(item.template_snapshot, item.answers, expiryByKey),
+    ...reviewQuantityIssues(item.answers, flightFigures),
+  ];
 
   async function approve() {
     setPending("approve");
@@ -407,6 +419,7 @@ function ReviewPanel({
             answers={item.answers}
             sources={sources}
             expiryByKey={expiryByKey}
+            flightFigures={flightFigures}
           />
 
           {item.signatureSignedUrl && (

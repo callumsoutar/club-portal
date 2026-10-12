@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/flight/ui/table";
 import { deleteAircraft, upsertAircraft } from "@/lib/flight/actions/admin";
+import { formatQuantity } from "@/lib/flight/endurance";
 import { cn } from "@/lib/flight/utils";
 import type { Aircraft } from "@/lib/flight/types";
 
@@ -53,6 +54,8 @@ type Values = {
   colour: string;
   is_active: boolean;
   notes: string;
+  fuel_burn_lph: string;
+  min_oil_quarts: string;
 };
 
 function toFormValues(item: Aircraft, overrides: Partial<Values> = {}) {
@@ -65,6 +68,10 @@ function toFormValues(item: Aircraft, overrides: Partial<Values> = {}) {
     colour: item.colour,
     is_active: item.is_active,
     notes: item.notes ?? "",
+    fuel_burn_lph:
+      item.fuel_burn_lph == null ? "" : String(item.fuel_burn_lph),
+    min_oil_quarts:
+      item.min_oil_quarts == null ? "" : String(item.min_oil_quarts),
     ...overrides,
   };
 }
@@ -175,12 +182,17 @@ export function AircraftManager({ aircraft }: { aircraft: Aircraft[] }) {
                       </p>
                       <p className="mt-0.5 truncate text-xs text-muted-foreground sm:hidden">
                         {item.aircraft_type}
+                        <span className="mx-1.5 text-border">·</span>
+                        {planningSummary(item)}
                       </p>
                     </div>
                   </TableCell>
 
                   <TableCell className="hidden px-4 py-4 text-sm text-foreground/80 sm:table-cell">
-                    {item.aircraft_type}
+                    <p>{item.aircraft_type}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                      {planningSummary(item)}
+                    </p>
                   </TableCell>
 
                   <TableCell className="hidden px-4 py-4 sm:table-cell">
@@ -227,6 +239,18 @@ export function AircraftManager({ aircraft }: { aircraft: Aircraft[] }) {
       />
     </>
   );
+}
+
+function planningSummary(item: Aircraft): string {
+  const burn =
+    item.fuel_burn_lph == null
+      ? "Fuel burn not set"
+      : `${formatQuantity(item.fuel_burn_lph)} L/h`;
+  const oil =
+    item.min_oil_quarts == null
+      ? "min oil not set"
+      : `min oil ${formatQuantity(item.min_oil_quarts)} qt`;
+  return `${burn} · ${oil}`;
 }
 
 function StatusPill({ status }: { status: Aircraft["status"] }) {
@@ -279,6 +303,10 @@ function AircraftDialog({
       colour: editing?.colour ?? PALETTE[0]!,
       is_active: editing?.is_active ?? true,
       notes: editing?.notes ?? "",
+      fuel_burn_lph:
+        editing?.fuel_burn_lph == null ? "" : String(editing.fuel_burn_lph),
+      min_oil_quarts:
+        editing?.min_oil_quarts == null ? "" : String(editing.min_oil_quarts),
     },
   });
 
@@ -339,6 +367,42 @@ function AircraftDialog({
               How pilots see it in the dropdown. Leave blank to build it
               automatically.
             </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="fuel_burn_lph">Fuel burn (L/h)</Label>
+              <Input
+                id="fuel_burn_lph"
+                type="number"
+                inputMode="decimal"
+                min={0.1}
+                max={500}
+                step="0.1"
+                placeholder="32"
+                {...register("fuel_burn_lph")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Litres per hour. Endurance is usable fuel divided by this.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="min_oil_quarts">Minimum oil (qt)</Label>
+              <Input
+                id="min_oil_quarts"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                max={40}
+                step="0.1"
+                placeholder="5"
+                {...register("min_oil_quarts")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Readings below this are highlighted on review.
+              </p>
+            </div>
           </div>
 
           <div className="space-y-2">

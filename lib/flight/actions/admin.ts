@@ -50,7 +50,37 @@ const aircraftSchema = z.object({
     .default("#0F62FE"),
   is_active: z.boolean().default(true),
   notes: z.string().trim().max(500).optional().or(z.literal("")),
+  fuel_burn_lph: optionalQuantity("Fuel burn", { positive: true, max: 500 }),
+  min_oil_quarts: optionalQuantity("Minimum oil", { max: 40 }),
 });
+
+function optionalQuantity(
+  label: string,
+  opts: { positive?: boolean; max: number },
+) {
+  return z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .transform((value) => {
+      if (value == null || value === "") return null;
+      return typeof value === "number" ? value : Number(value);
+    })
+    .refine((value) => value === null || Number.isFinite(value), {
+      message: `${label} must be a number`,
+    })
+    .refine(
+      (value) =>
+        value === null || (opts.positive ? value > 0 : value >= 0),
+      {
+        message: opts.positive
+          ? `${label} must be greater than 0`
+          : `${label} can't be negative`,
+      },
+    )
+    .refine((value) => value === null || value <= opts.max, {
+      message: `${label} must be ${opts.max} or less`,
+    });
+}
 
 export async function upsertAircraft(
   raw: z.input<typeof aircraftSchema>,
@@ -427,6 +457,11 @@ const clubSettingsSchema = z.object({
     .email("Enter a valid email")
     .optional()
     .or(z.literal("")),
+  club_reserve_minutes: z.coerce
+    .number({ message: "Enter a reserve time in minutes" })
+    .int("Use whole minutes")
+    .min(0, "Reserve time can't be negative")
+    .max(240, "Reserve time must be 4 hours or less"),
 });
 
 export async function updateClubSettings(
@@ -446,12 +481,14 @@ export async function updateClubSettings(
   const notificationEmail = parsed.data.notification_email || null;
   const emailsEnabled = parsed.data.emails_enabled;
   const memberLoginEnabled = parsed.data.member_login_enabled;
+  const clubReserveMinutes = parsed.data.club_reserve_minutes;
 
   const { error } = await supabase.from("club_settings").upsert({
     id: true,
     notification_email: notificationEmail,
     emails_enabled: emailsEnabled,
     member_login_enabled: memberLoginEnabled,
+    club_reserve_minutes: clubReserveMinutes,
     updated_at: new Date().toISOString(),
     updated_by: user?.id ?? null,
   });
@@ -468,6 +505,7 @@ export async function updateClubSettings(
       notification_email: notificationEmail,
       emails_enabled: emailsEnabled,
       member_login_enabled: memberLoginEnabled,
+      club_reserve_minutes: clubReserveMinutes,
     },
   });
 

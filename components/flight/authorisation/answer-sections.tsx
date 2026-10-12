@@ -5,6 +5,12 @@ import {
   isPresentational,
   type DataSources,
 } from "@/lib/flight/form-engine";
+import {
+  reviewFuel,
+  reviewOil,
+  type FlightFigures,
+  type QuantityTone,
+} from "@/lib/flight/endurance";
 import type { ExpiryInfo } from "@/lib/flight/format";
 import { cn } from "@/lib/flight/utils";
 import type {
@@ -21,6 +27,8 @@ interface AnswerSectionsProps {
   sources: DataSources;
   /** Computed currency status, keyed by field — rendered inline on that row. */
   expiryByKey?: Record<string, ExpiryInfo>;
+  /** Aircraft burn / min oil plus the club reserve, for fuel and oil rows. */
+  flightFigures?: FlightFigures;
   /** `plain` drops card chrome for document-style review pages. */
   variant?: "cards" | "plain";
   className?: string;
@@ -35,6 +43,7 @@ export function AnswerSections({
   answers,
   sources,
   expiryByKey = {},
+  flightFigures,
   variant = "cards",
   className,
 }: AnswerSectionsProps) {
@@ -55,6 +64,7 @@ export function AnswerSections({
           answers={answers}
           sources={sources}
           expiryByKey={expiryByKey}
+          flightFigures={flightFigures}
           variant={variant}
         />
       ))}
@@ -67,12 +77,14 @@ function AnswerSection({
   answers,
   sources,
   expiryByKey,
+  flightFigures,
   variant,
 }: {
   section: FormSection;
   answers: AnswerMap;
   sources: DataSources;
   expiryByKey: Record<string, ExpiryInfo>;
+  flightFigures?: FlightFigures;
   variant: "cards" | "plain";
 }) {
   const fields = section.fields
@@ -134,6 +146,7 @@ function AnswerSection({
                 answers={answers}
                 sources={sources}
                 expiry={expiryByKey[field.key]}
+                flightFigures={flightFigures}
                 plain
               />
             ))}
@@ -171,10 +184,65 @@ function AnswerSection({
             answers={answers}
             sources={sources}
             expiry={expiryByKey[field.key]}
+            flightFigures={flightFigures}
           />
         ))}
       </dl>
     </section>
+  );
+}
+
+function QuantityMarks({
+  fuel,
+  oil,
+  align = "start",
+}: {
+  fuel: ReturnType<typeof reviewFuel> | null;
+  oil: ReturnType<typeof reviewOil> | null;
+  align?: "start" | "end";
+}) {
+  if (!fuel && !oil) return null;
+
+  const chips: { key: string; label: string; tone: QuantityTone }[] = [];
+  if (fuel?.enduranceLabel) {
+    chips.push({ key: "endurance", label: fuel.enduranceLabel, tone: "unknown" });
+  }
+  if (fuel?.safeLabel) {
+    chips.push({ key: "safe", label: fuel.safeLabel, tone: fuel.tone });
+  }
+  if (oil?.detail && oil.tone !== "unknown") {
+    chips.push({ key: "oil", label: oil.detail, tone: oil.tone });
+  }
+
+  const sentence =
+    fuel?.detail ?? (oil?.tone === "unknown" ? oil.detail : null);
+
+  if (chips.length === 0 && !sentence) return null;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-full flex-wrap items-center gap-1.5",
+        align === "end" && "justify-end",
+      )}
+    >
+      {chips.map((chip) => (
+        <span
+          key={chip.key}
+          className={cn(
+            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium tabular-nums",
+            chip.tone === "low" && "bg-danger-muted text-destructive",
+            chip.tone === "ok" && "bg-success-muted text-success",
+            chip.tone === "unknown" && "bg-muted text-muted-foreground",
+          )}
+        >
+          {chip.label}
+        </span>
+      ))}
+      {sentence ? (
+        <span className="text-xs font-normal text-muted-foreground">{sentence}</span>
+      ) : null}
+    </span>
   );
 }
 
@@ -222,17 +290,36 @@ function AnswerRow({
   answers,
   sources,
   expiry,
+  flightFigures,
   plain = false,
 }: {
   field: FormField;
   answers: AnswerMap;
   sources: DataSources;
   expiry?: ExpiryInfo;
+  flightFigures?: FlightFigures;
   plain?: boolean;
 }) {
   const isBoolean = field.type === "checkbox" || field.type === "toggle";
   const checked = Boolean(answers[field.key]);
-  const value = displayAnswer(field, answers[field.key], sources);
+  const fuel =
+    flightFigures && field.key === "fuel_level"
+      ? reviewFuel({
+          answer: answers[field.key],
+          fuelBurnLph: flightFigures.fuelBurnLph,
+          reserveMinutes: flightFigures.reserveMinutes,
+        })
+      : null;
+  const oil =
+    flightFigures && field.key === "oil_level"
+      ? reviewOil({
+          answer: answers[field.key],
+          minOilQuarts: flightFigures.minOilQuarts,
+        })
+      : null;
+  const tone: QuantityTone | null = fuel?.tone ?? oil?.tone ?? null;
+  const low = tone === "low";
+  const value = fuel?.display ?? oil?.display ?? displayAnswer(field, answers[field.key], sources);
 
   const note =
     expiry && expiry.state !== "unknown" ? expiry.label : null;
@@ -243,7 +330,7 @@ function AnswerRow({
         plain
           ? "grid grid-cols-1 gap-1 px-5 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-center sm:gap-6"
           : "flex items-baseline justify-between gap-6 px-4 py-2.5",
-        plain && isBoolean && !checked && "bg-danger-muted/60",
+        (plain && isBoolean && !checked) || low ? "bg-danger-muted/60" : null,
       )}
     >
       <dt
@@ -252,7 +339,9 @@ function AnswerRow({
           !plain && "max-w-[48%]",
           isBoolean && !checked
             ? "font-medium text-destructive"
-            : "text-muted-foreground",
+            : low
+              ? "font-medium text-destructive"
+              : "text-muted-foreground",
         )}
       >
         {field.label}
@@ -298,10 +387,12 @@ function AnswerRow({
                 "break-words text-foreground",
                 value === "—" && "font-normal text-muted-foreground/50",
                 expiry?.state === "expired" && "text-destructive",
+                low && "text-destructive",
               )}
             >
               {value}
             </span>
+            <QuantityMarks fuel={fuel} oil={oil} />
             {note && (
               <span
                 className={cn(
@@ -324,10 +415,12 @@ function AnswerRow({
                 "break-words",
                 value === "—" && "font-normal text-muted-foreground/50",
                 expiry?.state === "expired" && "text-destructive",
+                low && "text-destructive",
               )}
             >
               {value}
             </span>
+            <QuantityMarks fuel={fuel} oil={oil} align="end" />
             {note && (
               <span
                 className={cn(

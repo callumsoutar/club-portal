@@ -20,6 +20,7 @@ import { DatePicker, datePickerModeForKey } from "@/components/flight/date-picke
 import { ChecklistItem } from "@/components/flight/wizard/checklist-item";
 import { TimeInput } from "@/components/flight/wizard/time-input";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { quantityUnit } from "@/lib/flight/endurance";
 import { resolveOptions, type DataSources } from "@/lib/flight/form-engine";
 import { cn } from "@/lib/flight/utils";
 import type { AnswerMap, FieldOption, FormField } from "@/lib/flight/types";
@@ -319,24 +320,37 @@ export function FieldRenderer({
               return <SignaturePad value={value} onChange={rhf.onChange} />;
 
             default: {
+              const unit = quantityUnit(field.key);
               const numericKeyboard =
-                field.type === "number" || usesNumericKeyboard(field.key);
+                field.type === "number" || unit != null || usesNumericKeyboard(field.key);
 
               return (
-                <Input
-                  id={field.key}
-                  type={field.type === "number" ? "number" : "text"}
-                  value={value}
-                  onChange={rhf.onChange}
-                  onBlur={rhf.onBlur}
-                  placeholder={field.placeholder ?? undefined}
-                  aria-invalid={invalid}
-                  className="h-14 rounded-2xl border-border bg-background text-base shadow-xs focus-visible:bg-background sm:h-12 sm:rounded-xl sm:text-sm"
-                  inputMode={numericKeyboard ? "decimal" : undefined}
-                  autoComplete={autoCompleteFor(field.key)}
-                  autoCorrect={numericKeyboard ? "off" : undefined}
-                  spellCheck={numericKeyboard ? false : undefined}
-                />
+                <div className="relative">
+                  <Input
+                    id={field.key}
+                    type={field.type === "number" ? "number" : "text"}
+                    value={value}
+                    onChange={rhf.onChange}
+                    onBlur={rhf.onBlur}
+                    placeholder={field.placeholder ?? undefined}
+                    aria-invalid={invalid}
+                    min={unit ? 0 : undefined}
+                    step={unit ? "0.1" : undefined}
+                    className={cn(
+                      "h-14 rounded-2xl border-border bg-background text-base shadow-xs focus-visible:bg-background sm:h-12 sm:rounded-xl sm:text-sm",
+                      unit && "pr-12",
+                    )}
+                    inputMode={numericKeyboard ? "decimal" : undefined}
+                    autoComplete={autoCompleteFor(field.key)}
+                    autoCorrect={numericKeyboard ? "off" : undefined}
+                    spellCheck={numericKeyboard ? false : undefined}
+                  />
+                  {unit ? (
+                    <span className="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+                      {unit}
+                    </span>
+                  ) : null}
+                </div>
               );
             }
           }
