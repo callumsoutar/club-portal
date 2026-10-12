@@ -32,6 +32,8 @@ interface RenderedEmail {
   body: string[];
   details?: { label: string; value: string }[];
   cta?: { label: string; url: string };
+  /** Six-digit confirmation code, shown on its own line. */
+  code?: string;
   tone: EmailTone;
 }
 
@@ -306,6 +308,25 @@ export function renderEmail(
 }
 
 /** Production-ready HTML shell with inlined styles for mail-client safety. */
+export function signupCodeEmail(code: string, confirmUrl: string) {
+  return {
+    subject: `${code} is your ${APP_NAME} code`,
+    html: toHtml({
+      subject: `${code} is your ${APP_NAME} code`,
+      preview: "Enter this code to finish creating your account.",
+      eyebrow: "Confirm email",
+      heading: "Confirm your email",
+      code,
+      body: [
+        "Enter this code on the signup page to finish creating your account. It expires shortly and can only be used once.",
+        "You can also confirm straight from this email.",
+      ],
+      cta: { label: "Confirm email", url: confirmUrl },
+      tone: "info",
+    }),
+  };
+}
+
 export function toHtml(email: RenderedEmail): string {
   const palette = TONE[email.tone];
 
@@ -373,6 +394,11 @@ export function toHtml(email: RenderedEmail): string {
               <div style="padding:28px 28px 30px;">
                 <span style="display:inline-block;padding:5px 10px;border-radius:999px;background:${palette.badgeBg};color:${palette.badgeText};font-size:11px;font-weight:650;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(email.eyebrow)}</span>
                 <h1 style="margin:14px 0 16px;font-size:24px;line-height:1.25;color:#151a24;letter-spacing:-0.03em;font-weight:700;">${escapeHtml(email.heading)}</h1>
+                ${
+                  email.code
+                    ? `<p style="margin:0 0 18px;font-size:32px;line-height:1;font-weight:700;letter-spacing:0.28em;text-align:center;color:#151a24;">${escapeHtml(email.code)}</p>`
+                    : ""
+                }
                 ${paragraphs}
                 ${details}
                 ${button}

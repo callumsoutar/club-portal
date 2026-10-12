@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getAdminUser } from "@/lib/auth";
 import { audit } from "@/lib/flight/audit";
 import { getSessionUser } from "@/lib/flight/auth";
+import { requireMemberAdmin } from "@/lib/flight/members";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
 import {
   deleteClubLogoFiles,
@@ -810,5 +811,127 @@ export async function setTemplateVisibility(
   revalidatePath("/admin/form-builder");
   revalidatePath(`/admin/form-builder/${id}`);
   revalidatePath("/authorise");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// Member accounts
+// ---------------------------------------------------------------------------
+
+const optionalText = (max: number) =>
+  z.string().trim().max(max).optional().or(z.literal(""));
+
+const memberSchema = z.object({
+  id: z.string().uuid(),
+  full_name: z.string().trim().min(2, "Name is required").max(120),
+  phone: optionalText(40),
+  role: z.enum(["member", "instructor", "admin"]),
+  is_active: z.boolean(),
+  licence_type: z
+    .enum(["student", "rpl", "ppl", "cpl", "atpl", "instructor"])
+    .optional()
+    .or(z.literal("")),
+  licence_number: optionalText(40),
+  bfr_expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  medical_expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
+  preferred_aircraft_id: z.string().uuid().optional().or(z.literal("")),
+  emergency_contact_name: optionalText(120),
+  emergency_contact_phone: optionalText(40),
+  notes: optionalText(2000),
+});
+
+export async function updateMemberProfile(
+  raw: z.input<typeof memberSchema>,
+): Promise<ActionResult> {
+  const actor = await requireMemberAdmin();
+  if (!actor) return denied();
+
+  const parsed = memberSchema.safeParse(raw);
+  if (!parsed.success) return firstIssue(parsed.error);
+
+  const values = parsed.data;
+  const supabase = createServiceSupabase();
+
+  if (values.id === actor.id && !values.is_active) {
+    return { ok: false, error: "You can't deactivate your own account." };
+  }
+
+  const { data: current, error: currentError } = await supabase
+    .from("profiles")
+    .select("role, is_active")
+    .eq("id", values.id)
+    .maybeSingle();
+
+  if (currentError || !current) {
+    return { ok: false, error: "That member no longer exists." };
+  }
+
+  const losingAdmin =
+    current.role === "admin" &&
+    current.is_active &&
+    (values.role !== "admin" || !values.is_active);
+
+  if (losingAdmin) {
+    const { count } = await supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "admin")
+      .eq("is_active", true)
+      .neq("id", values.id);
+
+    if ((count ?? 0) === 0) {
+      return { ok: false, error: "Keep at least one active flight admin." };
+    }
+  }
+
+  const profilePayload = {
+    full_name: values.full_name,
+    phone: values.phone || null,
+    role: values.role,
+    is_active: values.is_active,
+  };
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update(profilePayload)
+    .eq("id", values.id);
+
+  if (profileError) return { ok: false, error: "Couldn't save that member." };
+
+  const { error: pilotError } = await supabase.from("pilot_profiles").upsert(
+    {
+      profile_id: values.id,
+      licence_type: values.licence_type || null,
+      licence_number: values.licence_number || null,
+      bfr_expiry: values.bfr_expiry || null,
+      medical_expiry: values.medical_expiry || null,
+      preferred_aircraft_id: values.preferred_aircraft_id || null,
+      emergency_contact_name: values.emergency_contact_name || null,
+      emergency_contact_phone: values.emergency_contact_phone || null,
+      notes: values.notes || null,
+    },
+    { onConflict: "profile_id" },
+  );
+
+  if (pilotError) {
+    if (pilotError.code === "23503") {
+      return { ok: false, error: "That aircraft is no longer on the fleet." };
+    }
+    return { ok: false, error: "Couldn't save the pilot details." };
+  }
+
+  await audit({
+    actorId: actor.id,
+    actorLabel: actor.email,
+    action: "member.update",
+    entityType: "profile",
+    entityId: values.id,
+    after: profilePayload,
+  });
+
+  revalidatePath("/admin/members");
+  revalidatePath("/");
+  revalidatePath("/fly");
+  revalidatePath("/fly/profile");
   return { ok: true };
 }

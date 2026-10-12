@@ -95,6 +95,13 @@ export const APP_NAV: NavItem[] = [
     section: "club",
   },
   {
+    href: "/admin/members",
+    title: "Members",
+    icon: UserRound,
+    access: "club",
+    section: "club",
+  },
+  {
     href: "/admin/form-builder",
     title: "Form builder",
     icon: Wrench,

@@ -8,6 +8,7 @@ import {
   CircleX,
   Clock,
   History,
+  Mail,
   MessageSquare,
   PenLine,
   Phone,
@@ -40,11 +41,17 @@ import {
   getAllAircraft,
   getAllInstructors,
   getAuthorisation,
+  getAuthorisationEmails,
   getComments,
 } from "@/lib/flight/queries";
 import { getSignatureUrl } from "@/lib/flight/storage";
 import { cn } from "@/lib/flight/utils";
 import type { ExpiryInfo } from "@/lib/flight/format";
+import type {
+  AuthorisationEmail,
+  NotificationEvent,
+  NotificationStatus,
+} from "@/lib/flight/types";
 
 export const metadata = { title: "Review authorisation" };
 
@@ -59,10 +66,11 @@ export default async function ApprovalPage({
   const authorisation = await getAuthorisation(id);
   if (!authorisation) notFound();
 
-  const [comments, activity, aircraft, instructors, signatureUrl] =
+  const [comments, activity, emails, aircraft, instructors, signatureUrl] =
     await Promise.all([
       getComments(id),
       getActivity(id),
+      getAuthorisationEmails(id),
       getAllAircraft(),
       getAllInstructors(),
       getSignatureUrl(authorisation.signature_url),
@@ -223,8 +231,23 @@ export default async function ApprovalPage({
                 )}
               </Panel>
 
+              <Panel
+                icon={Mail}
+                title="Emails"
+                className="order-4"
+                action={
+                  emails.length > 0 ? (
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground tabular-nums">
+                      {emails.length}
+                    </span>
+                  ) : null
+                }
+              >
+                <EmailLog emails={emails} />
+              </Panel>
+
               {activity.length > 0 && (
-                <Panel icon={History} title="Activity" className="order-4">
+                <Panel icon={History} title="Activity" className="order-5">
                   <ol className="relative space-y-4 before:absolute before:top-1.5 before:bottom-1.5 before:left-[5px] before:w-px before:bg-border">
                     {activity.map((entry, index) => (
                       <li key={entry.id} className="relative pl-6">
@@ -352,6 +375,82 @@ function Fact({
         </dd>
       ) : null}
     </div>
+  );
+}
+
+const EMAIL_EVENT_LABEL: Record<NotificationEvent, string> = {
+  authorisation_submitted: "Authorisation submitted",
+  instructor_assigned: "Instructor assigned",
+  approval_granted: "Approval granted",
+  approval_declined: "Approval declined",
+  comment_added: "Comment added",
+  reminder_before_eta: "Return reminder",
+  overdue_return: "Overdue return",
+  medical_expiring: "Medical expiring",
+  bfr_expiring: "BFR expiring",
+  welcome: "Welcome",
+  password_reset: "Password reset",
+  account_created: "Account created",
+};
+
+const EMAIL_STATUS: Record<NotificationStatus, { label: string; className: string }> = {
+  sent: { label: "Sent", className: "bg-success-muted text-success" },
+  skipped: { label: "Not sent", className: "bg-muted text-muted-foreground" },
+  failed: { label: "Failed", className: "bg-danger-muted text-destructive" },
+  queued: { label: "Queued", className: "bg-warning-muted text-warning-foreground" },
+  sending: { label: "Sending", className: "bg-warning-muted text-warning-foreground" },
+};
+
+function EmailLog({ emails }: { emails: AuthorisationEmail[] }) {
+  if (emails.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No emails have been recorded for this authorisation.
+      </p>
+    );
+  }
+
+  return (
+    <ol className="space-y-3">
+      {emails.map((email) => {
+        const status = EMAIL_STATUS[email.status] ?? EMAIL_STATUS.queued;
+        const when = email.sent_at ?? email.created_at;
+        return (
+          <li key={email.id} className="rounded-xl bg-muted/50 px-3.5 py-3">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm leading-snug font-medium">
+                {email.subject || EMAIL_EVENT_LABEL[email.event] || email.event}
+              </p>
+              <span
+                className={cn(
+                  "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+                  status.className,
+                )}
+              >
+                {status.label}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {EMAIL_EVENT_LABEL[email.event] ?? email.event}
+              {" · "}
+              {email.recipient_name
+                ? `${email.recipient_name} (${email.recipient_email})`
+                : email.recipient_email}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {email.status === "sent" ? "Sent" : "Recorded"} {formatRelative(when)}
+              {" · "}
+              {formatDateTime(when)}
+            </p>
+            {email.error ? (
+              <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+                {email.error}
+              </p>
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 

@@ -10,6 +10,11 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/flight/ui/button";
+import {
+  resendSignupCode,
+  sendSignupCode,
+  type SignupCodeType,
+} from "@/lib/flight/actions/signup";
 import { AuthDivider, GoogleSignInButton } from "@/components/google-sign-in-button";
 import {
   Field,
@@ -44,6 +49,12 @@ export function AuthForm({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [pending, setPending] = useState(false);
+  const [confirming, setConfirming] = useState<{
+    email: string;
+    verificationType: SignupCodeType;
+    codeLength: number;
+  } | null>(null);
+  const [code, setCode] = useState("");
   const isSignup = mode === "signup";
   const staffOnly = !memberLoginEnabled;
 
@@ -58,41 +69,26 @@ export function AuthForm({
     ),
   });
 
-  async function onSubmit(values: FormValues) {
-    setPending(true);
-    const supabase = createClient();
+  function nextPath() {
+    const requested = searchParams.get("next");
+    return requested?.startsWith("/") &&
+      !requested.startsWith("//") &&
+      !requested.includes("\\")
+      ? requested
+      : "/";
+  }
 
-    if (isSignup && !memberLoginEnabled) {
+  async function continueSignedIn(
+    supabase: ReturnType<typeof createClient>,
+    userId: string | undefined,
+  ) {
+    if (!userId) {
       setPending(false);
-      toast.error("Member accounts are not open yet. Continue as a guest.");
-      return;
-    }
-
-    const { data, error } = isSignup
-      ? await supabase.auth.signUp({
-          email: values.email,
-          password: values.password,
-          options: { data: { full_name: values.full_name } },
-        })
-      : await supabase.auth.signInWithPassword({
-          email: values.email,
-          password: values.password,
-        });
-
-    if (error) {
-      setPending(false);
-      toast.error(error.message);
+      toast.error("Couldn't verify your account. Try again.");
       return;
     }
 
     if (!memberLoginEnabled) {
-      const userId = data.user?.id;
-      if (!userId) {
-        setPending(false);
-        toast.error("Couldn't verify your account. Try again.");
-        return;
-      }
-
       const { data: profile } = await supabase
         .from("profiles")
         .select("role")
@@ -110,16 +106,193 @@ export function AuthForm({
       }
     }
 
-    // Honour the `next` param the proxy set, so a deep link survives sign-in.
-    const requested = searchParams.get("next");
-    const next =
-      requested?.startsWith("/") &&
-      !requested.startsWith("//") &&
-      !requested.includes("\\")
-        ? requested
-        : "/";
-    router.push(next);
+    router.push(nextPath());
     router.refresh();
+  }
+
+  async function onSubmit(values: FormValues) {
+    setPending(true);
+    const supabase = createClient();
+
+    if (isSignup && !memberLoginEnabled) {
+      setPending(false);
+      toast.error("Member accounts are not open yet. Continue as a guest.");
+      return;
+    }
+
+    if (isSignup) {
+      const result = await sendSignupCode({
+        fullName: values.full_name ?? "",
+        email: values.email,
+        password: values.password,
+        origin: window.location.origin,
+        next: searchParams.get("next"),
+      });
+      setPending(false);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setCode("");
+      setConfirming({
+        email: values.email.trim().toLowerCase(),
+        verificationType: result.verificationType,
+        codeLength: result.codeLength,
+      });
+      return;
+    }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: values.email,
+      password: values.password,
+    });
+
+    if (error) {
+      const unconfirmed =
+        error.code === "email_not_confirmed" || /not confirmed/i.test(error.message);
+      if (unconfirmed) {
+        const sent = await resendSignupCode({
+          email: values.email,
+          origin: window.location.origin,
+          next: searchParams.get("next"),
+        });
+        setPending(false);
+        if (!sent.ok) {
+          toast.error(sent.error);
+          return;
+        }
+        setCode("");
+        setConfirming({
+          email: values.email.trim().toLowerCase(),
+          verificationType: sent.verificationType,
+          codeLength: sent.codeLength,
+        });
+        return;
+      }
+
+      setPending(false);
+      toast.error(error.message);
+      return;
+    }
+
+    await continueSignedIn(supabase, data.user?.id);
+  }
+
+  async function onConfirm(event: React.FormEvent) {
+    event.preventDefault();
+    if (!confirming) return;
+
+    const token = code.replace(/\D/g, "");
+    if (token.length !== confirming.codeLength) {
+      toast.error(`Enter the ${confirming.codeLength}-digit code from the email.`);
+      return;
+    }
+
+    setPending(true);
+    const supabase = createClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: confirming.email,
+      token,
+      type: confirming.verificationType,
+    });
+
+    if (error) {
+      setPending(false);
+      toast.error(error.message);
+      return;
+    }
+
+    await continueSignedIn(supabase, data.user?.id);
+  }
+
+  async function onResend() {
+    if (!confirming) return;
+    setPending(true);
+    const result = await resendSignupCode({
+      email: confirming.email,
+      origin: window.location.origin,
+      next: searchParams.get("next"),
+    });
+    setPending(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setCode("");
+    setConfirming({
+      email: confirming.email,
+      verificationType: result.verificationType,
+      codeLength: result.codeLength,
+    });
+    toast.success("A new code is on its way.");
+  }
+
+  if (confirming) {
+    return (
+      <form onSubmit={onConfirm} className={cn("flex flex-col gap-6", className)}>
+        <FieldGroup>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <h1 className="text-2xl font-semibold tracking-tight">Check your email</h1>
+            <p className="text-sm text-balance text-muted-foreground">
+              We sent {confirming.codeLength === 8 ? "an" : "a"} {confirming.codeLength}-digit code to{" "}
+              <span className="font-medium text-foreground">{confirming.email}</span>.
+              Enter it here, or use the link in the email.
+            </p>
+          </div>
+
+          <Field>
+            <FieldLabel htmlFor="signup-code">Confirmation code</FieldLabel>
+            <Input
+              id="signup-code"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              maxLength={confirming.codeLength}
+              placeholder={"0".repeat(confirming.codeLength)}
+              value={code}
+              onChange={(event) =>
+                setCode(event.target.value.replace(/\D/g, "").slice(0, confirming.codeLength))
+              }
+              className="h-14 text-center text-2xl tracking-[0.4em] font-semibold"
+            />
+          </Field>
+
+          <Field>
+            <Button
+              type="submit"
+              size="lg"
+              disabled={pending || code.length !== confirming.codeLength}
+              className="w-full"
+            >
+              {pending && <Loader2 className="size-4 animate-spin" />}
+              Confirm email
+            </Button>
+          </Field>
+
+          <FieldDescription className="text-center">
+            <button
+              type="button"
+              className="underline underline-offset-4 disabled:opacity-50"
+              disabled={pending}
+              onClick={onResend}
+            >
+              Resend code
+            </button>
+            {" · "}
+            <button
+              type="button"
+              className="underline underline-offset-4"
+              onClick={() => {
+                setConfirming(null);
+                setCode("");
+              }}
+            >
+              Use a different email
+            </button>
+          </FieldDescription>
+        </FieldGroup>
+      </form>
+    );
   }
 
   return (

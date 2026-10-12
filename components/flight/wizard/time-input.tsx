@@ -89,6 +89,10 @@ export function TimeInput({
         />
       </div>
 
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Enter the time in New Zealand local time.
+      </p>
+
       {parsed ? (
         <p className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">
