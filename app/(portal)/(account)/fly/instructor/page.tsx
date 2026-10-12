@@ -14,6 +14,7 @@ import {
   getAllAircraft,
   getAllInstructors,
   getAuthorisationQueue,
+  getClubSettings,
   getDashboardStats,
   type QueueFilters as Filters,
 } from "@/lib/flight/queries";
@@ -202,10 +203,13 @@ async function AuthorisationResults({
     to: params.to,
   };
 
-  const rows = await getAuthorisationQueue({
-    ...filters,
-    limit: isNeedsReview ? 24 : 100,
-  });
+  const [rows, club] = await Promise.all([
+    getAuthorisationQueue({
+      ...filters,
+      limit: isNeedsReview ? 24 : 100,
+    }),
+    getClubSettings(),
+  ]);
 
   if (isNeedsReview) {
     if (rows.length === 0) {
@@ -230,6 +234,7 @@ async function AuthorisationResults({
           })),
         )}
         sources={{ aircraft, instructors }}
+        reserveMinutes={club?.club_reserve_minutes ?? 45}
         canArchive={canArchive}
       />
     );

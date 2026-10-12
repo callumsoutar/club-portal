@@ -29,6 +29,7 @@ import {
 } from "@/components/flight/approval/decision-bar";
 import { requireStaff } from "@/lib/flight/auth";
 import { LICENCE_SHORT } from "@/lib/flight/constants";
+import { reviewQuantityIssues, type FlightFigures } from "@/lib/flight/endurance";
 import {
   formatDate,
   formatDateTime,
@@ -42,6 +43,7 @@ import {
   getAllInstructors,
   getAuthorisation,
   getAuthorisationEmails,
+  getClubSettings,
   getComments,
 } from "@/lib/flight/queries";
 import { getSignatureUrl } from "@/lib/flight/storage";
@@ -66,7 +68,7 @@ export default async function ApprovalPage({
   const authorisation = await getAuthorisation(id);
   if (!authorisation) notFound();
 
-  const [comments, activity, emails, aircraft, instructors, signatureUrl] =
+  const [comments, activity, emails, aircraft, instructors, signatureUrl, club] =
     await Promise.all([
       getComments(id),
       getActivity(id),
@@ -74,7 +76,14 @@ export default async function ApprovalPage({
       getAllAircraft(),
       getAllInstructors(),
       getSignatureUrl(authorisation.signature_url),
+      getClubSettings(),
     ]);
+
+  const flightFigures: FlightFigures = {
+    fuelBurnLph: authorisation.aircraft?.fuel_burn_lph ?? null,
+    minOilQuarts: authorisation.aircraft?.min_oil_quarts ?? null,
+    reserveMinutes: club?.club_reserve_minutes ?? 45,
+  };
 
   const sources = { aircraft, instructors };
 
@@ -90,6 +99,10 @@ export default async function ApprovalPage({
     authorisation.template_snapshot,
     authorisation.answers,
     {},
+  );
+  const quantityIssues = reviewQuantityIssues(
+    authorisation.answers,
+    flightFigures,
   );
   const hasExpiredCurrency =
     bfr.state === "expired" || medical.state === "expired";
@@ -221,6 +234,22 @@ export default async function ApprovalPage({
                   </p>
                 ) : null}
 
+                {quantityIssues.length > 0 ? (
+                  <div className="mt-3 rounded-xl bg-danger-muted px-3.5 py-3">
+                    <p className="flex items-center gap-1.5 text-sm font-semibold text-destructive">
+                      <AlertTriangle className="size-4" aria-hidden />
+                      Fuel or oil needs attention
+                    </p>
+                    <ul className="mt-1.5 space-y-1 pl-5.5 text-[13px] text-destructive/90">
+                      {quantityIssues.map((issue) => (
+                        <li key={issue} className="list-disc">
+                          {issue}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
                 {isActionable && (
                   <DecisionBar
                     authorisationId={authorisation.id}
@@ -276,6 +305,7 @@ export default async function ApprovalPage({
                 answers={authorisation.answers}
                 sources={sources}
                 expiryByKey={expiryByKey}
+                flightFigures={flightFigures}
                 variant="plain"
               />
 

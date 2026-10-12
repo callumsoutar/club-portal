@@ -97,6 +97,10 @@ export interface Aircraft {
   is_active: boolean;
   sort_order: number;
   notes: string | null;
+  /** Cruise fuel burn in litres per hour. Null until the club sets it. */
+  fuel_burn_lph: number | null;
+  /** Minimum dipstick reading in quarts. Null until the club sets it. */
+  min_oil_quarts: number | null;
 }
 
 export interface Instructor {
@@ -126,6 +130,11 @@ export interface ClubSettings {
    * Staff (admin / instructor) can always sign in at /login.
    */
   member_login_enabled: boolean;
+  /**
+   * Minutes subtracted from endurance (usable fuel ÷ fuel burn) to give
+   * safe endurance. Defaults to 45.
+   */
+  club_reserve_minutes: number;
   /** Path inside the public `branding` storage bucket. */
   logo_path: string | null;
   /** Resolved public URL for the club logo (when set). */
@@ -262,7 +271,15 @@ export interface Authorisation {
 
 /** Authorisation joined with its display relations, as the queue renders it. */
 export interface AuthorisationWithRelations extends Authorisation {
-  aircraft: Pick<Aircraft, "id" | "registration" | "aircraft_type" | "colour"> | null;
+  aircraft: Pick<
+    Aircraft,
+    | "id"
+    | "registration"
+    | "aircraft_type"
+    | "colour"
+    | "fuel_burn_lph"
+    | "min_oil_quarts"
+  > | null;
   instructor: Pick<Instructor, "id" | "full_name"> | null;
 }
 

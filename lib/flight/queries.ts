@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { createServerSupabase, createServiceSupabase } from "@/lib/flight/supabase/server";
+import { asNumber } from "@/lib/flight/endurance";
 import { publicBrandingUrl } from "@/lib/flight/storage";
 import { ACTIONABLE_STATUSES } from "@/lib/flight/constants";
 import type {
@@ -22,13 +23,26 @@ import type {
 
 const AUTH_SELECT = `
   *,
-  aircraft:aircraft_id ( id, registration, aircraft_type, colour ),
+  aircraft:aircraft_id ( id, registration, aircraft_type, colour, fuel_burn_lph, min_oil_quarts ),
   instructor:instructor_id ( id, full_name )
 `;
 
 // ---------------------------------------------------------------------------
 // Reference data
 // ---------------------------------------------------------------------------
+
+function normalizeAircraft<T extends Aircraft>(row: T): T {
+  return {
+    ...row,
+    fuel_burn_lph: asNumber(row.fuel_burn_lph),
+    min_oil_quarts: asNumber(row.min_oil_quarts),
+  };
+}
+
+function withAircraftFigures<T extends AuthorisationWithRelations>(row: T): T {
+  if (!row.aircraft) return row;
+  return { ...row, aircraft: normalizeAircraft(row.aircraft as Aircraft) };
+}
 
 /**
  * Active aircraft, in club-defined order. Uses the anon-readable policy so the
@@ -42,7 +56,7 @@ export const getActiveAircraft = cache(async (): Promise<Aircraft[]> => {
     .eq("is_active", true)
     .order("sort_order")
     .order("registration");
-  return (data as Aircraft[]) ?? [];
+  return ((data as Aircraft[]) ?? []).map(normalizeAircraft);
 });
 
 export const getAllAircraft = cache(async (): Promise<Aircraft[]> => {
@@ -52,7 +66,7 @@ export const getAllAircraft = cache(async (): Promise<Aircraft[]> => {
     .select("*")
     .order("sort_order")
     .order("registration");
-  return (data as Aircraft[]) ?? [];
+  return ((data as Aircraft[]) ?? []).map(normalizeAircraft);
 });
 
 export const getActiveInstructors = cache(async (): Promise<Instructor[]> => {
@@ -93,6 +107,7 @@ export const getClubSettings = cache(async (): Promise<ClubSettings | null> => {
     member_login_enabled: Boolean(
       (data as { member_login_enabled?: boolean }).member_login_enabled,
     ),
+    club_reserve_minutes: asNumber(row.club_reserve_minutes) ?? 45,
     logo_path: row.logo_path ?? null,
     logo_url: publicBrandingUrl(row.logo_path ?? null, row.updated_at),
   };
@@ -275,7 +290,9 @@ export async function getAuthorisationQueue(
     console.error("[queries] queue failed", error);
     return [];
   }
-  return (data as unknown as AuthorisationWithRelations[]) ?? [];
+  return ((data as unknown as AuthorisationWithRelations[]) ?? []).map(
+    withAircraftFigures,
+  );
 }
 
 export const getAuthorisation = cache(
@@ -286,7 +303,8 @@ export const getAuthorisation = cache(
       .select(AUTH_SELECT)
       .eq("id", id)
       .maybeSingle();
-    return (data as unknown as AuthorisationWithRelations) ?? null;
+    if (!data) return null;
+    return withAircraftFigures(data as unknown as AuthorisationWithRelations);
   },
 );
 
@@ -320,7 +338,9 @@ export async function getMyAuthorisations(
     .eq("profile_id", profileId)
     .order("created_at", { ascending: false })
     .limit(50);
-  return (data as unknown as AuthorisationWithRelations[]) ?? [];
+  return ((data as unknown as AuthorisationWithRelations[]) ?? []).map(
+    withAircraftFigures,
+  );
 }
 
 export async function getComments(authorisationId: string): Promise<Comment[]> {

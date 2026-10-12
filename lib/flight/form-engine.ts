@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { asNumber, formatQuantity, quantityUnit } from "@/lib/flight/endurance";
+
 import type {
   AnswerMap,
   Aircraft,
@@ -302,6 +304,12 @@ export function displayAnswer(
         year: "numeric",
       });
     }
+  }
+
+  const unit = quantityUnit(field.key);
+  if (unit) {
+    const amount = asNumber(value);
+    if (amount != null) return `${formatQuantity(amount)} ${unit}`;
   }
 
   return String(value);

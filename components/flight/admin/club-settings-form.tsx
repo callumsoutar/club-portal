@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { ImageIcon, Loader2, Mail, Trash2, Upload, Users } from "lucide-react";
+import { ImageIcon, Loader2, Mail, Timer, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateCompanySettings } from "@/app/(portal)/(account)/admin/settings/actions";
@@ -22,6 +22,7 @@ type Values = {
   emails_enabled: boolean;
   member_login_enabled: boolean;
   notification_email: string;
+  club_reserve_minutes: number;
 };
 
 export function ClubSettingsForm({
@@ -45,6 +46,7 @@ export function ClubSettingsForm({
       emails_enabled: settings?.emails_enabled ?? false,
       member_login_enabled: settings?.member_login_enabled ?? false,
       notification_email: settings?.notification_email ?? "",
+      club_reserve_minutes: settings?.club_reserve_minutes ?? 45,
     },
   });
 
@@ -89,6 +91,7 @@ export function ClubSettingsForm({
       emails_enabled: values.emails_enabled,
       member_login_enabled: values.member_login_enabled,
       notification_email: values.notification_email,
+      club_reserve_minutes: values.club_reserve_minutes,
     });
     setPending(false);
 
@@ -107,7 +110,7 @@ export function ClubSettingsForm({
     <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
       <PageHeader
         title="Club settings"
-        description="Club name, logo, member login, and authorisation email."
+        description="Club name, logo, reserve time, member login, and authorisation email."
         actions={
           <Button type="submit" disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
@@ -184,6 +187,35 @@ export function ClubSettingsForm({
               </div>
             </Field>
           </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Timer}
+          title="Club reserve time"
+          description="Safe endurance is usable fuel divided by the aircraft fuel burn, minus this reserve."
+          className="lg:col-span-2"
+        >
+          <Field
+            label="Reserve"
+            htmlFor="club_reserve_minutes"
+            hint="Minutes held back from calculated endurance. 45 is forty-five minutes."
+          >
+            <div className="relative max-w-xs">
+              <Input
+                id="club_reserve_minutes"
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={240}
+                step={1}
+                className={cn(controlClass, "pr-14")}
+                {...form.register("club_reserve_minutes", { valueAsNumber: true })}
+              />
+              <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-muted-foreground">
+                min
+              </span>
+            </div>
+          </Field>
         </SettingsCard>
 
         <SettingsCard
