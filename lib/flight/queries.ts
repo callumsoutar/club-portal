@@ -10,6 +10,7 @@ import type {
   Aircraft,
   Approval,
   Authorisation,
+  AuthorisationEmail,
   AuthorisationStatus,
   AuthorisationWithRelations,
   ClubSettings,
@@ -350,6 +351,26 @@ export async function getActivity(authorisationId: string): Promise<ActivityEntr
     .eq("authorisation_id", authorisationId)
     .order("created_at", { ascending: false });
   return (data as ActivityEntry[]) ?? [];
+}
+
+/** Emails queued or sent for one authorisation, newest first. */
+export async function getAuthorisationEmails(
+  authorisationId: string,
+): Promise<AuthorisationEmail[]> {
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("notifications")
+    .select(
+      "id, event, status, recipient_email, recipient_name, subject, error, sent_at, created_at",
+    )
+    .eq("authorisation_id", authorisationId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[queries] authorisation emails failed", error);
+    return [];
+  }
+  return (data as AuthorisationEmail[]) ?? [];
 }
 
 // ---------------------------------------------------------------------------

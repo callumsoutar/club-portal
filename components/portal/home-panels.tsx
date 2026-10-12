@@ -100,32 +100,6 @@ export function SectionEmpty({ children }: { children: React.ReactNode }) {
   return <p className="py-5 text-sm text-muted-foreground">{children}</p>;
 }
 
-const STEPS = [
-  { title: "Fill in the form", body: "Choose your aircraft and add the details of your flight." },
-  { title: "An instructor reviews it", body: "They approve it or follow up with you before you fly." },
-  { title: "Track the decision", body: "Check the outcome from your phone with your tracking link." },
-];
-
-/** For visitors: how flight authorisation works, under the page title. */
-export function AuthorisationSteps({ className }: { className?: string }) {
-  return (
-    <ol className={cn("grid gap-y-5 py-5 md:grid-cols-3", className)}>
-      {STEPS.map((step, index) => (
-        <li
-          key={step.title}
-          className={cn("min-w-0 md:px-6 md:first:pl-0", index > 0 && "md:border-l")}
-        >
-          <p className="text-[11px] font-semibold tracking-[0.08em] text-muted-foreground uppercase tabular-nums">
-            Step {index + 1}
-          </p>
-          <p className="mt-1.5 text-[15px] font-semibold text-foreground">{step.title}</p>
-          <p className="mt-0.5 text-[13px] leading-relaxed text-muted-foreground">{step.body}</p>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
 /** Rows of records (authorisations) that line up with the section heading. */
 export function RecordList({ children }: { children: React.ReactNode }) {
   return (

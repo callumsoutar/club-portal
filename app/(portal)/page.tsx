@@ -4,7 +4,6 @@ import { AuthorisationCard } from "@/components/flight/authorisation-card";
 import { CurrencyAlert } from "@/components/flight/currency-alert";
 import { HomeHeader, type HeroAction } from "@/components/portal/home-hero";
 import {
-  AuthorisationSteps,
   QuickLinks,
   RecordList,
   ReminderList,
@@ -103,7 +102,7 @@ export default async function PortalHomePage() {
       <div className="-mt-8 border-b bg-card md:-mt-10">
         <Page
           width="wide"
-          className={`max-w-7xl gap-0 pt-8 md:pt-10 ${viewer.user ? "pb-8" : "pb-0"}`}
+          className="max-w-7xl gap-0 pt-8 pb-8 md:pt-10"
         >
           <HomeHeader
             eyebrow={company.companyName}
@@ -122,8 +121,6 @@ export default async function PortalHomePage() {
             primary={{ href: AUTHORISE_NAV.href, label: AUTHORISE_NAV.title, icon: AUTHORISE_NAV.icon }}
             secondary={secondaryAction}
           />
-
-          {!viewer.user ? <AuthorisationSteps className="mt-7 border-t py-6" /> : null}
         </Page>
       </div>
 

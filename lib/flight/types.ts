@@ -39,6 +39,8 @@ export type FieldType =
   | "toggle"
   | "file";
 
+export type NotificationStatus = "queued" | "sending" | "sent" | "failed" | "skipped";
+
 export type NotificationEvent =
   | "authorisation_submitted"
   | "instructor_assigned"
@@ -75,8 +77,14 @@ export interface PilotProfile {
   preferred_aircraft_id: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
-  total_hours: number | null;
   notes: string | null;
+}
+
+/** A signed-up account, with pilot currency and whether they edit safety content. */
+export interface MemberAccount {
+  profile: Profile;
+  pilot: PilotProfile | null;
+  safetyAdmin: boolean;
 }
 
 export interface Aircraft {
@@ -275,6 +283,19 @@ export interface Approval {
   actor_id: string | null;
   decision: AuthorisationStatus;
   reason: string | null;
+  created_at: string;
+}
+
+/** An outbound email recorded against an authorisation. */
+export interface AuthorisationEmail {
+  id: string;
+  event: NotificationEvent;
+  status: NotificationStatus;
+  recipient_email: string;
+  recipient_name: string | null;
+  subject: string | null;
+  error: string | null;
+  sent_at: string | null;
   created_at: string;
 }
 
