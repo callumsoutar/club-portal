@@ -62,7 +62,7 @@ export function landingPath(input: {
   const { nextPath, safetyAdmin, flightRole } = input
   const flightAdmin = flightRole === 'admin'
   const adminNext = nextPath === '/admin' || nextPath?.startsWith('/admin/') || nextPath === '/tv' || nextPath?.startsWith('/tv?')
-  const flightNext = nextPath === '/fly' || nextPath?.startsWith('/fly/') || nextPath === '/authorise' || nextPath?.startsWith('/authorise/') || nextPath?.startsWith('/a/')
+  const flightNext = nextPath === '/fly' || nextPath?.startsWith('/fly/') || nextPath === '/authorise' || nextPath?.startsWith('/authorise/') || nextPath?.startsWith('/a/') || isTrafficPath(nextPath)
   const portalNext = nextPath !== null && isPortalPath(nextPath)
   const hasAccess = safetyAdmin || flightRole !== null
 
@@ -91,6 +91,11 @@ export function safeNextPath(value: string | null | undefined) {
     value.startsWith('/fly/') ||
     value === '/authorise' ||
     value.startsWith('/authorise/') ||
-    value.startsWith('/a/')
+    value.startsWith('/a/') ||
+    isTrafficPath(value)
   return allowed ? value : null
+}
+
+function isTrafficPath(value: string | null): value is string {
+  return value === '/traffic' || Boolean(value?.startsWith('/traffic?'))
 }
