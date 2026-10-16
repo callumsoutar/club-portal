@@ -8,7 +8,7 @@ import { Page, PageHeader } from '@/components/portal/page'
 import { CategoryDot } from '@/components/safety/article-row'
 import { listAdminSafetyMessages } from '@/lib/admin-safety-messages'
 import { getAdminUser } from '@/lib/auth'
-import { safetyArticleHref } from '@/lib/safety-messages'
+import { formatViewCount, safetyArticleHref } from '@/lib/safety-messages'
 import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = {
@@ -73,6 +73,8 @@ export default async function AdminMessagesPage() {
                   {message.category}
                   <span aria-hidden>·</span>
                   {message.publishedDate || `Updated ${formatUpdated(message.updatedAt)}`}
+                  <span aria-hidden>·</span>
+                  {formatViewCount(message.viewCount)}
                   {message.tags.length > 0 ? (
                     <>
                       <span aria-hidden>·</span>

@@ -40,6 +40,8 @@ export type SafetyMessage = {
   body: string
   links: SafetyMessageLink[]
   featured?: boolean
+  /** Times the published article page has been opened. */
+  viewCount: number
 }
 
 /** Row shape returned by the public safety_messages select. */
@@ -56,6 +58,7 @@ export type SafetyMessageRow = {
   published_date: string | null
   featured: boolean
   links: unknown
+  view_count: number
 }
 
 export function emphasizeTitle(title: string, emphasis?: string) {
@@ -137,7 +140,13 @@ export function mapSafetyMessage(row: SafetyMessageRow): SafetyMessage {
     body: row.body_markdown,
     links: parseLinks(row.links),
     featured: row.featured,
+    viewCount: row.view_count,
   }
+}
+
+export function formatViewCount(count: number) {
+  const total = Math.max(0, Math.trunc(count))
+  return total === 1 ? '1 view' : `${total.toLocaleString('en-NZ')} views`
 }
 
 function formatPublishedDate(isoDate: string) {

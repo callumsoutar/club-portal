@@ -7,6 +7,7 @@ import { MessageBody } from "@/components/message-body";
 import { Button } from "@/components/flight/ui/button";
 import { Page, SectionHeading, TextLink } from "@/components/portal/page";
 import { ArticleList, CategoryDot } from "@/components/safety/article-row";
+import { ArticleViewCount } from "@/components/safety/article-view-count";
 import {
   getPublishedSafetyMessage,
   getPublishedSafetyMessages,
@@ -91,6 +92,8 @@ export default async function SafetyArticlePage({ params }: { params: Params }) 
               {message.date ? <time>{message.date}</time> : null}
               {message.date ? <span aria-hidden> · </span> : null}
               {message.read}
+              <span aria-hidden> · </span>
+              <ArticleViewCount slug={message.slug} initialCount={message.viewCount} />
               <span aria-hidden> · </span>
               {viewer.company.companyName} safety team
             </p>

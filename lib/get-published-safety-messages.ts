@@ -10,7 +10,7 @@ export const getPublishedSafetyMessages = cache(async () => {
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('safety_messages')
-    .select('id, slug, title, summary, body_markdown, category, image_url, image_alt, caption, published_date, featured, links')
+    .select('id, slug, title, summary, body_markdown, category, image_url, image_alt, caption, published_date, featured, links, view_count')
     .eq('is_published', true)
     .order('published_date', { ascending: false })
     .order('id', { ascending: false })
