@@ -5,12 +5,13 @@ import { createClient } from '@/lib/supabase/server'
 import type { SafetyMessageLink } from '@/lib/safety-messages'
 import type { SafetyMessageFormValues } from '@/lib/safety-message-schema'
 
-const columns = 'id, slug, title, summary, body_markdown, category, tags, links, link_url, link_label, image_url, image_alt, caption, published_date, is_published, featured, updated_at' as const
+const columns = 'id, slug, title, summary, body_markdown, category, tags, links, link_url, link_label, image_url, image_alt, caption, published_date, is_published, featured, updated_at, view_count' as const
 
 export type AdminSafetyMessage = SafetyMessageFormValues & {
   id: number
   isPublished: boolean
   updatedAt: string
+  viewCount: number
 }
 
 type AdminSafetyMessageRow = {
@@ -31,6 +32,7 @@ type AdminSafetyMessageRow = {
   is_published: boolean
   featured: boolean
   updated_at: string
+  view_count: number
 }
 
 function parseLinks(value: unknown): SafetyMessageLink[] {
@@ -64,6 +66,7 @@ export function mapAdminSafetyMessage(row: AdminSafetyMessageRow): AdminSafetyMe
     featured: row.featured,
     isPublished: row.is_published,
     updatedAt: row.updated_at,
+    viewCount: row.view_count,
   }
 }
 
