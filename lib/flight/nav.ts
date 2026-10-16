@@ -71,14 +71,14 @@ export const APP_NAV: NavItem[] = [
     href: "/fly/instructor",
     title: "Review queue",
     icon: ListChecks,
-    access: "instructor",
+    access: "admin",
     section: "flying",
   },
   {
     href: "/traffic",
     title: "Traffic",
     icon: Radar,
-    access: "instructor",
+    access: "admin",
     section: "flying",
   },
   {

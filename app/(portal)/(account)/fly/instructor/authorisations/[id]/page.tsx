@@ -27,7 +27,7 @@ import {
   ReviewStatusBadge,
   ReviewStatusProvider,
 } from "@/components/flight/approval/decision-bar";
-import { requireStaff } from "@/lib/flight/auth";
+import { requireAdmin } from "@/lib/flight/auth";
 import { LICENCE_SHORT } from "@/lib/flight/constants";
 import { reviewQuantityIssues, type FlightFigures } from "@/lib/flight/endurance";
 import {
@@ -62,7 +62,7 @@ export default async function ApprovalPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireStaff();
+  const user = await requireAdmin();
   const { id } = await params;
 
   const authorisation = await getAuthorisation(id);
@@ -340,7 +340,7 @@ export default async function ApprovalPage({
                 <CommentBox
                   authorisationId={authorisation.id}
                   comments={comments}
-                  canPostInternal={user.profile.role !== "member"}
+                  canPostInternal={user.profile.role === "admin"}
                   plain
                 />
               </Panel>

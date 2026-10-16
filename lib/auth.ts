@@ -62,12 +62,21 @@ export function landingPath(input: {
   const { nextPath, safetyAdmin, flightRole } = input
   const flightAdmin = flightRole === 'admin'
   const adminNext = nextPath === '/admin' || nextPath?.startsWith('/admin/') || nextPath === '/tv' || nextPath?.startsWith('/tv?')
-  const flightNext = nextPath === '/fly' || nextPath?.startsWith('/fly/') || nextPath === '/authorise' || nextPath?.startsWith('/authorise/') || nextPath?.startsWith('/a/') || isTrafficPath(nextPath)
+  const adminFlightNext =
+    Boolean(nextPath?.startsWith('/fly/instructor')) || isTrafficPath(nextPath)
+  const memberFlightNext =
+    nextPath === '/fly' ||
+    nextPath === '/fly/profile' ||
+    Boolean(nextPath?.startsWith('/fly/profile')) ||
+    nextPath === '/authorise' ||
+    Boolean(nextPath?.startsWith('/authorise/')) ||
+    Boolean(nextPath?.startsWith('/a/'))
   const portalNext = nextPath !== null && isPortalPath(nextPath)
   const hasAccess = safetyAdmin || flightRole !== null
 
   if (nextPath && adminNext && (safetyAdmin || flightAdmin)) return nextPath
-  if (nextPath && flightNext && flightRole) return nextPath
+  if (nextPath && adminFlightNext && flightAdmin) return nextPath
+  if (nextPath && memberFlightNext && flightRole) return nextPath
   if (nextPath && portalNext && hasAccess) return nextPath
   if (hasAccess) return '/'
   return null

@@ -8,7 +8,7 @@ import { QueueFilters } from "@/components/flight/queue/queue-filters";
 import { QueueTable } from "@/components/flight/queue/queue-table";
 import { Separator } from "@/components/flight/ui/separator";
 import { Skeleton } from "@/components/flight/ui/skeleton";
-import { requireStaff } from "@/lib/flight/auth";
+import { requireAdmin } from "@/lib/flight/auth";
 import { ACTIONABLE_STATUSES } from "@/lib/flight/constants";
 import {
   getAllAircraft,
@@ -34,7 +34,7 @@ export default async function AuthorisationsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const user = await requireStaff();
+  const user = await requireAdmin();
   const canArchive = user.profile.role === "admin";
 
   const params = await searchParams;

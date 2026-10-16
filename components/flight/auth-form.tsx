@@ -29,7 +29,8 @@ import { cn } from "@/lib/flight/utils";
 import type { AppRole } from "@/lib/flight/types";
 
 const schema = z.object({
-  full_name: z.string().trim().min(2, "Please enter your full name").optional(),
+  first_name: z.string().trim().max(60).optional(),
+  last_name: z.string().trim().max(60).optional(),
   email: z.string().trim().email("Enter a valid email address"),
   password: z.string().min(8, "Use at least 8 characters"),
 });
@@ -64,8 +65,12 @@ export function AuthForm({
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(
-      // Name is only required when creating an account.
-      isSignup ? schema.required({ full_name: true }) : schema.omit({ full_name: true }),
+      isSignup
+        ? schema.extend({
+            first_name: z.string().trim().min(1, "Enter your first name").max(60),
+            last_name: z.string().trim().min(1, "Enter your last name").max(60),
+          })
+        : schema.omit({ first_name: true, last_name: true }),
     ),
   });
 
@@ -122,7 +127,8 @@ export function AuthForm({
 
     if (isSignup) {
       const result = await sendSignupCode({
-        fullName: values.full_name ?? "",
+        firstName: values.first_name ?? "",
+        lastName: values.last_name ?? "",
         email: values.email,
         password: values.password,
         origin: window.location.origin,
@@ -325,18 +331,32 @@ export function AuthForm({
         <AuthDivider className="my-1" />
 
         {isSignup && (
-          <Field data-invalid={Boolean(errors.full_name) || undefined}>
-            <FieldLabel htmlFor="full_name">Full name</FieldLabel>
-            <Input
-              id="full_name"
-              autoComplete="name"
-              placeholder="Alex Whitfield"
-              className="h-11"
-              aria-invalid={Boolean(errors.full_name)}
-              {...register("full_name")}
-            />
-            <FieldError>{errors.full_name?.message}</FieldError>
-          </Field>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field data-invalid={Boolean(errors.first_name) || undefined}>
+              <FieldLabel htmlFor="first_name">First name</FieldLabel>
+              <Input
+                id="first_name"
+                autoComplete="given-name"
+                placeholder="Alex"
+                className="h-11"
+                aria-invalid={Boolean(errors.first_name)}
+                {...register("first_name")}
+              />
+              <FieldError>{errors.first_name?.message}</FieldError>
+            </Field>
+            <Field data-invalid={Boolean(errors.last_name) || undefined}>
+              <FieldLabel htmlFor="last_name">Last name</FieldLabel>
+              <Input
+                id="last_name"
+                autoComplete="family-name"
+                placeholder="Whitfield"
+                className="h-11"
+                aria-invalid={Boolean(errors.last_name)}
+                {...register("last_name")}
+              />
+              <FieldError>{errors.last_name?.message}</FieldError>
+            </Field>
+          </div>
         )}
 
         <Field data-invalid={Boolean(errors.email) || undefined}>

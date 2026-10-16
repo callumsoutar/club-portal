@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function TrafficPage() {
   const user = await getSessionUser();
   if (!user) redirect("/login?next=/traffic");
-  if (!hasRole(user.profile.role, "instructor")) redirect("/fly");
+  if (!hasRole(user.profile.role, "admin")) redirect("/fly");
 
   const company = await getCompanySettings();
 

@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { getAdminUser } from "@/lib/auth";
 import { audit } from "@/lib/flight/audit";
+import { displayNameMetadata } from "@/lib/flight/auth-name";
 import { getSessionUser } from "@/lib/flight/auth";
 import { requireMemberAdmin } from "@/lib/flight/members";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
@@ -872,7 +873,6 @@ const memberSchema = z.object({
   licence_number: optionalText(40),
   bfr_expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   medical_expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
-  preferred_aircraft_id: z.string().uuid().optional().or(z.literal("")),
   emergency_contact_name: optionalText(120),
   emergency_contact_phone: optionalText(40),
   notes: optionalText(2000),
@@ -943,7 +943,6 @@ export async function updateMemberProfile(
       licence_number: values.licence_number || null,
       bfr_expiry: values.bfr_expiry || null,
       medical_expiry: values.medical_expiry || null,
-      preferred_aircraft_id: values.preferred_aircraft_id || null,
       emergency_contact_name: values.emergency_contact_name || null,
       emergency_contact_phone: values.emergency_contact_phone || null,
       notes: values.notes || null,
@@ -953,10 +952,15 @@ export async function updateMemberProfile(
 
   if (pilotError) {
     if (pilotError.code === "23503") {
-      return { ok: false, error: "That aircraft is no longer on the fleet." };
+      return { ok: false, error: "Couldn't save the pilot details." };
     }
     return { ok: false, error: "Couldn't save the pilot details." };
   }
+
+  const { error: nameError } = await supabase.auth.admin.updateUserById(values.id, {
+    user_metadata: displayNameMetadata(values.full_name),
+  });
+  if (nameError) return { ok: false, error: "Couldn't update the name on that account." };
 
   await audit({
     actorId: actor.id,
