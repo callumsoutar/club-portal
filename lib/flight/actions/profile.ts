@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getSessionUser } from "@/lib/flight/auth";
+import { displayNameMetadata } from "@/lib/flight/auth-name";
 import { createServerSupabase, createServiceSupabase } from "@/lib/flight/supabase/server";
 import type { ActionResult } from "@/lib/flight/actions/authorisations";
 
@@ -18,7 +19,6 @@ const profileSchema = z.object({
   licence_number: z.string().trim().max(40).optional().or(z.literal("")),
   bfr_expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
   medical_expiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().or(z.literal("")),
-  preferred_aircraft_id: z.string().uuid().optional().or(z.literal("")),
   emergency_contact_name: z.string().trim().max(120).optional().or(z.literal("")),
   emergency_contact_phone: z.string().trim().max(40).optional().or(z.literal("")),
 });
@@ -55,7 +55,6 @@ export async function updateProfile(
       licence_number: v.licence_number || null,
       bfr_expiry: v.bfr_expiry || null,
       medical_expiry: v.medical_expiry || null,
-      preferred_aircraft_id: v.preferred_aircraft_id || null,
       emergency_contact_name: v.emergency_contact_name || null,
       emergency_contact_phone: v.emergency_contact_phone || null,
     },
@@ -63,6 +62,11 @@ export async function updateProfile(
   );
 
   if (pilotError) return { ok: false, error: "Couldn't save your pilot details." };
+
+  const { error: nameError } = await supabase.auth.admin.updateUserById(user.id, {
+    user_metadata: displayNameMetadata(v.full_name),
+  });
+  if (nameError) return { ok: false, error: "Couldn't update the name on your account." };
 
   revalidatePath("/fly");
   revalidatePath("/fly/profile");

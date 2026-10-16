@@ -21,12 +21,11 @@ import { updateProfile } from "@/lib/flight/actions/profile";
 import { LICENCE_LABELS } from "@/lib/flight/constants";
 import { getExpiryInfo } from "@/lib/flight/format";
 import { cn } from "@/lib/flight/utils";
-import type { Aircraft, LicenceType, PilotProfile, Profile } from "@/lib/flight/types";
+import type { LicenceType, PilotProfile, Profile } from "@/lib/flight/types";
 
 interface ProfileFormProps {
   profile: Profile;
   pilot: PilotProfile | null;
-  aircraft: Aircraft[];
 }
 
 type Values = {
@@ -36,7 +35,6 @@ type Values = {
   licence_number: string;
   bfr_expiry: string;
   medical_expiry: string;
-  preferred_aircraft_id: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
 };
@@ -46,7 +44,7 @@ type Values = {
  * the whole point of an account, so the expiry fields show their live status
  * inline rather than making the pilot work out whether they're still current.
  */
-export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
+export function ProfileForm({ profile, pilot }: ProfileFormProps) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -58,7 +56,6 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
       licence_number: pilot?.licence_number ?? "",
       bfr_expiry: pilot?.bfr_expiry ?? "",
       medical_expiry: pilot?.medical_expiry ?? "",
-      preferred_aircraft_id: pilot?.preferred_aircraft_id ?? "",
       emergency_contact_name: pilot?.emergency_contact_name ?? "",
       emergency_contact_phone: pilot?.emergency_contact_phone ?? "",
     },
@@ -141,7 +138,7 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
             {unsaved ? (
               <p className="text-sm text-muted-foreground">Unsaved changes</p>
             ) : null}
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || !unsaved}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
               Save changes
             </Button>
@@ -228,31 +225,6 @@ export function ProfileForm({ profile, pilot, aircraft }: ProfileFormProps) {
             />
           </Field>
         </div>
-      </Card>
-
-      <Card title="Preferences">
-        <Field label="Usual aircraft" hint="Pre-selected on your next authorisation">
-          <Select
-            value={watch("preferred_aircraft_id") || "__none"}
-            onValueChange={(v: string) =>
-              setValue("preferred_aircraft_id", v === "__none" ? "" : v, {
-                shouldDirty: true,
-              })
-            }
-          >
-            <SelectTrigger className={fieldClass}>
-              <SelectValue placeholder="No preference" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none">No preference</SelectItem>
-              {aircraft.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.display_name || `${a.aircraft_type} · ${a.registration}`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
       </Card>
 
       <Card title="Emergency contact">

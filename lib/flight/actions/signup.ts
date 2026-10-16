@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { safeNextPath } from "@/lib/auth";
+import { signupNameMetadata } from "@/lib/flight/auth-name";
 import { checkRateLimit, getClientIp } from "@/lib/flight/audit";
 import { isMemberLoginEnabled } from "@/lib/flight/queries";
 import { signupCodeEmail } from "@/lib/flight/notifications/templates";
@@ -24,7 +25,8 @@ type SendResult =
  * through the club's mail provider and keeps the link as a fallback.
  */
 export async function sendSignupCode(raw: {
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
   origin: string;
@@ -36,7 +38,8 @@ export async function sendSignupCode(raw: {
 
   const parsed = z
     .object({
-      fullName: z.string().trim().min(2, "Please enter your full name").max(120),
+      firstName: z.string().trim().min(1, "Enter your first name").max(60),
+      lastName: z.string().trim().min(1, "Enter your last name").max(60),
       email: emailSchema,
       password: passwordSchema,
       origin: z.string().url(),
@@ -48,6 +51,7 @@ export async function sendSignupCode(raw: {
   }
 
   const email = parsed.data.email.toLowerCase();
+  const name = signupNameMetadata(parsed.data.firstName, parsed.data.lastName);
   const limited = await limitSignup(email);
   if (limited) return limited;
 
@@ -61,7 +65,7 @@ export async function sendSignupCode(raw: {
   if (existing) {
     const { error: passwordError } = await supabase.auth.admin.updateUserById(existing.id, {
       password: parsed.data.password,
-      user_metadata: { full_name: parsed.data.fullName },
+      user_metadata: name,
     });
     if (passwordError) {
       return { ok: false, error: "Couldn't update that account. Try again." };
@@ -83,7 +87,7 @@ export async function sendSignupCode(raw: {
         email,
         password: parsed.data.password,
         options: {
-          data: { full_name: parsed.data.fullName },
+          data: name,
           redirectTo,
         },
       });

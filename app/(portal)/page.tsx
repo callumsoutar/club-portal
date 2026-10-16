@@ -14,7 +14,6 @@ import {
   type QuickLink,
 } from "@/components/portal/home-panels";
 import { Page } from "@/components/portal/page";
-import { hasRole } from "@/lib/flight/auth";
 import { ACTIONABLE_STATUSES } from "@/lib/flight/constants";
 import { APP_NAV, AUTHORISE_NAV, canAccessNav, PROFILE_NAV } from "@/lib/flight/nav";
 import { getAuthorisationQueue, getMyAuthorisations } from "@/lib/flight/queries";
@@ -35,13 +34,13 @@ const CLUB_TIME_ZONE = "Pacific/Auckland";
 export default async function PortalHomePage() {
   const viewer = await getPortalViewer();
   const { session, role, company } = viewer;
-  const isStaff = role !== null && hasRole(role, "instructor");
+  const isAdmin = role === "admin";
   const isMember = session !== null && role !== null;
 
   const [messages, myAuthorisations, reviewQueue] = await Promise.all([
     getPublishedSafetyMessages(),
     isMember ? getMyAuthorisations(session.id) : Promise.resolve([]),
-    isStaff
+    isAdmin
       ? getAuthorisationQueue({ status: ACTIONABLE_STATUSES, limit: REVIEW_LIMIT })
       : Promise.resolve(null),
   ]);
@@ -251,8 +250,8 @@ function MemberPrompt() {
         Club member?
       </h2>
       <p className="mt-1.5 text-[13px] leading-relaxed">
-        Sign in to keep a history of your flights, track your BFR and medical, and have your
-        details filled in for you next time.
+        Track your BFR and medical, and save your details ready for next time so it&apos;s
+        quicker and easier.
       </p>
       <div className="mt-4 flex items-center gap-4">
         <Link

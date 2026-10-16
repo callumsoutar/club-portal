@@ -40,7 +40,6 @@ import { LICENCE_LABELS, LICENCE_SHORT } from "@/lib/flight/constants";
 import { formatDate, getExpiryInfo } from "@/lib/flight/format";
 import { cn } from "@/lib/flight/utils";
 import type {
-  Aircraft,
   AppRole,
   LicenceType,
   MemberAccount,
@@ -69,7 +68,6 @@ type Values = {
   licence_number: string;
   bfr_expiry: string;
   medical_expiry: string;
-  preferred_aircraft_id: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
   notes: string;
@@ -77,11 +75,9 @@ type Values = {
 
 export function MemberManager({
   members,
-  aircraft,
   currentUserId,
 }: {
   members: MemberAccount[];
-  aircraft: Aircraft[];
   currentUserId: string;
 }) {
   const [query, setQuery] = useState("");
@@ -272,7 +268,6 @@ export function MemberManager({
             <MemberEditor
               key={selected.profile.id}
               member={selected}
-              aircraft={aircraft}
               isSelf={selected.profile.id === currentUserId}
               onClose={() => setSelected(null)}
             />
@@ -285,12 +280,10 @@ export function MemberManager({
 
 function MemberEditor({
   member,
-  aircraft,
   isSelf,
   onClose,
 }: {
   member: MemberAccount;
-  aircraft: Aircraft[];
   isSelf: boolean;
   onClose: () => void;
 }) {
@@ -308,7 +301,6 @@ function MemberEditor({
       licence_number: pilot?.licence_number ?? "",
       bfr_expiry: pilot?.bfr_expiry ?? "",
       medical_expiry: pilot?.medical_expiry ?? "",
-      preferred_aircraft_id: pilot?.preferred_aircraft_id ?? "",
       emergency_contact_name: pilot?.emergency_contact_name ?? "",
       emergency_contact_phone: pilot?.emergency_contact_phone ?? "",
       notes: pilot?.notes ?? "",
@@ -330,7 +322,6 @@ function MemberEditor({
       licence_number: values.licence_number,
       bfr_expiry: values.bfr_expiry,
       medical_expiry: values.medical_expiry,
-      preferred_aircraft_id: values.preferred_aircraft_id,
       emergency_contact_name: values.emergency_contact_name,
       emergency_contact_phone: values.emergency_contact_phone,
       notes: values.notes,
@@ -447,31 +438,6 @@ function MemberEditor({
               <Input {...register("medical_expiry")} type="date" />
             </Field>
           </div>
-        </section>
-
-        <section className="space-y-4">
-          <SectionTitle>Preferences</SectionTitle>
-          <Field label="Usual aircraft">
-            <Select
-              value={watch("preferred_aircraft_id") || "__none"}
-              onValueChange={(value: string) =>
-                setValue("preferred_aircraft_id", value === "__none" ? "" : value)
-              }
-            >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="No preference" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none">No preference</SelectItem>
-                {aircraft.map((item) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {item.display_name || `${item.aircraft_type} · ${item.registration}`}
-                    {item.is_active ? "" : " (inactive)"}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
         </section>
 
         <section className="space-y-4">

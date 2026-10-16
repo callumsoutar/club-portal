@@ -11,8 +11,8 @@ export async function GET() {
   if (!user) {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
-  if (!hasRole(user.profile.role, "instructor")) {
-    return NextResponse.json({ error: "Instructors only." }, { status: 403 });
+  if (!hasRole(user.profile.role, "admin")) {
+    return NextResponse.json({ error: "Admins only." }, { status: 403 });
   }
 
   try {

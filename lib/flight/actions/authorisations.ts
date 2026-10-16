@@ -10,6 +10,7 @@ import { GUEST_RATE_LIMIT } from "@/lib/flight/constants";
 import { buildTemplateSchema, indexFields } from "@/lib/flight/form-engine";
 import { notify } from "@/lib/flight/notifications/service";
 import { getAuthorisation, getPublishedTemplateById } from "@/lib/flight/queries";
+import { displayNameMetadata } from "@/lib/flight/auth-name";
 import { getSessionUser } from "@/lib/flight/auth";
 import { uploadSignature } from "@/lib/flight/storage";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
@@ -331,7 +332,7 @@ async function decide(
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
   const user = await getSessionUser();
-  if (!user || (user.profile.role !== "instructor" && user.profile.role !== "admin")) {
+  if (!user || user.profile.role !== "admin") {
     return { ok: false, error: "You don't have permission to do that." };
   }
 
@@ -445,7 +446,7 @@ export async function addComment(
   const existing = await getAuthorisation(authorisationId);
   if (!existing) return { ok: false, error: "Authorisation not found." };
 
-  const isStaff = user.profile.role !== "member";
+  const isStaff = user.profile.role === "admin";
   if (!isStaff && existing.profile_id !== user.id) {
     return { ok: false, error: "You don't have permission to comment here." };
   }
@@ -491,7 +492,7 @@ export async function addComment(
 
 export async function markCompleted(authorisationId: string): Promise<ActionResult> {
   const user = await getSessionUser();
-  if (!user || user.profile.role === "member") {
+  if (!user || user.profile.role !== "admin") {
     return { ok: false, error: "You don't have permission to do that." };
   }
 
@@ -635,7 +636,6 @@ async function rememberPilotDetails(userId: string, values: AnswerMap) {
   const licence = asString(values.licence_type);
   const bfr = asString(values.bfr_expiry);
   const medical = asString(values.medical_expiry);
-  const aircraftId = asString(values.aircraft_id);
   const date = /^\d{4}-\d{2}-\d{2}$/;
 
   if (fullName || phone) {
@@ -648,6 +648,12 @@ async function rememberPilotDetails(userId: string, values: AnswerMap) {
       .eq("id", userId);
   }
 
+  if (fullName) {
+    await supabase.auth.admin.updateUserById(userId, {
+      user_metadata: displayNameMetadata(fullName),
+    });
+  }
+
   await supabase.from("pilot_profiles").upsert(
     {
       profile_id: userId,
@@ -656,7 +662,6 @@ async function rememberPilotDetails(userId: string, values: AnswerMap) {
         : {}),
       ...(bfr && date.test(bfr) ? { bfr_expiry: bfr } : {}),
       ...(medical && date.test(medical) ? { medical_expiry: medical } : {}),
-      ...(aircraftId ? { preferred_aircraft_id: aircraftId } : {}),
     },
     { onConflict: "profile_id" },
   );
