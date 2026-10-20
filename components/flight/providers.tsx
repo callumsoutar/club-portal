@@ -3,10 +3,17 @@
 import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+import { ClubTimeZoneProvider } from "@/components/flight/club-time";
 import { TooltipProvider } from "@/components/flight/ui/tooltip";
 import { Toaster } from "@/components/flight/ui/sonner";
 
-export function Providers({ children }: { children: React.ReactNode }) {
+export function Providers({
+  children,
+  timeZone,
+}: {
+  children: React.ReactNode;
+  timeZone: string;
+}) {
   // Created in state so the client is stable across re-renders but never
   // shared between users on the server.
   const [queryClient] = useState(
@@ -27,6 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   );
 
   return (
+    <ClubTimeZoneProvider timeZone={timeZone}>
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={200}>
         {children}
@@ -39,5 +47,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         />
       </TooltipProvider>
     </QueryClientProvider>
+    </ClubTimeZoneProvider>
   );
 }

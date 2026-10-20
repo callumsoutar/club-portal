@@ -63,6 +63,7 @@ import {
   type ExpiryInfo,
 } from "@/lib/flight/format";
 import { toastClearedToFly } from "@/lib/flight/toasts";
+import { useClubTimeZone } from "@/components/flight/club-time";
 import { cn } from "@/lib/flight/utils";
 import type { AuthorisationWithRelations } from "@/lib/flight/types";
 
@@ -98,6 +99,8 @@ export function PendingReview({
 
   const selected = items.find((i) => i.id === selectedId) ?? null;
 
+  const timeZone = useClubTimeZone();
+
   function close() {
     setSelectedId(null);
     router.refresh();
@@ -131,8 +134,8 @@ export function PendingReview({
           </TableHeader>
           <TableBody>
             {items.map((item) => {
-              const medical = getExpiryInfo(item.pilot_medical_expiry);
-              const bfr = getExpiryInfo(item.pilot_bfr_expiry);
+              const medical = getExpiryInfo(item.pilot_medical_expiry, timeZone);
+              const bfr = getExpiryInfo(item.pilot_bfr_expiry, timeZone);
               const expired =
                 medical.state === "expired" || bfr.state === "expired";
               const registration =
@@ -247,12 +250,13 @@ function ReviewPanel({
   reserveMinutes: number;
   onDone: () => void;
 }) {
+  const timeZone = useClubTimeZone();
   const [pending, setPending] = useState<"approve" | "decline" | null>(null);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [reason, setReason] = useState("");
 
-  const bfr = getExpiryInfo(item.pilot_bfr_expiry);
-  const medical = getExpiryInfo(item.pilot_medical_expiry);
+  const bfr = getExpiryInfo(item.pilot_bfr_expiry, timeZone);
+  const medical = getExpiryInfo(item.pilot_medical_expiry, timeZone);
   const expiredCurrency = bfr.state === "expired" || medical.state === "expired";
 
   const expiryByKey: Record<string, ExpiryInfo> = {
@@ -437,7 +441,7 @@ function ReviewPanel({
                 />
               </div>
               <p className="px-4 pb-4 text-xs text-muted-foreground">
-                Signed {formatDateTime(item.signed_at)}
+                Signed {formatDateTime(item.signed_at, timeZone)}
               </p>
             </section>
           )}

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { asNumber, formatQuantity, quantityUnit } from "@/lib/flight/endurance";
+import { formatDate } from "@/lib/flight/format";
 
 import type {
   AnswerMap,
@@ -296,14 +297,8 @@ export function displayAnswer(
 
   // Stored as yyyy-MM-dd / HH:mm; nobody wants to read an ISO string.
   if (field.type === "date" && typeof value === "string") {
-    const parsed = new Date(`${value}T00:00:00`);
-    if (!Number.isNaN(parsed.getTime())) {
-      return parsed.toLocaleDateString("en-NZ", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      });
-    }
+    const formatted = formatDate(value);
+    if (formatted !== "—") return formatted;
   }
 
   const unit = quantityUnit(field.key);

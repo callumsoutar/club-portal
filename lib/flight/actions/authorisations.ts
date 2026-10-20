@@ -15,6 +15,7 @@ import { getSessionUser } from "@/lib/flight/auth";
 import { uploadSignature } from "@/lib/flight/storage";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
 import { combineDateTime, formatDate, formatDateTime } from "@/lib/flight/format";
+import { getCompanySettings } from "@/lib/get-company-settings";
 import type { AnswerMap, LicenceType } from "@/lib/flight/types";
 
 export interface ActionResult<T = unknown> {
@@ -140,7 +141,8 @@ export async function submitAuthorisation(
   const flightDate = asString(values.flight_date);
   // Prefer SAR time when present (cross-country forms); fall back to return ETA.
   const etaTime = asString(values.sar_time) ?? asString(values.return_eta) ?? "";
-  const returnEta = flightDate ? combineDateTime(flightDate, etaTime) : null;
+  const { timeZone } = await getCompanySettings();
+  const returnEta = flightDate ? combineDateTime(flightDate, etaTime, timeZone) : null;
 
   // The signature lives in storage, not in the answer blob.
   const storedAnswers: AnswerMap = { ...values, signature: signaturePath };
@@ -202,7 +204,7 @@ export async function submitAuthorisation(
     exercise: asString(values.exercise),
     destination: asString(values.destination) ?? asString(values.exercise),
     flightDate: formatDate(flightDate, "EEE d MMM yyyy"),
-    eta: returnEta ? formatDateTime(returnEta) : undefined,
+    eta: returnEta ? formatDateTime(returnEta, timeZone) : undefined,
   };
 
   // Non-critical follow-up: don't block the pilot on email / denormalised rows.

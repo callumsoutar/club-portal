@@ -1,13 +1,15 @@
 import type { AnswerMap } from "@/lib/flight/types";
 import type { getSessionUser } from "@/lib/flight/auth";
+import { DEFAULT_TIME_ZONE, calendarDateInTimeZone } from "@/lib/time-zone";
 
 /** Prefill the wizard from a signed-in pilot profile. */
 export function buildAuthorisationPrefill(
   user: Awaited<ReturnType<typeof getSessionUser>>,
+  timeZone: string = DEFAULT_TIME_ZONE,
 ): AnswerMap {
   if (!user) return {};
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = calendarDateInTimeZone(new Date(), timeZone);
 
   return {
     pilot_name: user.profile.full_name ?? "",

@@ -1,27 +1,56 @@
-import {
-  differenceInCalendarDays,
-  format,
-  formatDistanceToNowStrict,
-  isValid,
-  parseISO,
-} from "date-fns";
+import { formatDistanceToNowStrict, isValid, parseISO } from "date-fns";
 
 import { EXPIRY_WARNING_DAYS } from "@/lib/flight/constants";
+import {
+  DEFAULT_TIME_ZONE,
+  calendarDateInTimeZone,
+  calendarDaysBetween,
+  formatCalendarDate,
+  formatInTimeZone,
+  resolveTimeZone,
+  zonedWallTimeToUtc,
+} from "@/lib/time-zone";
+
+const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 function toDate(value: string | Date | null | undefined): Date | null {
   if (!value) return null;
-  const d = typeof value === "string" ? parseISO(value) : value;
-  return isValid(d) ? d : null;
+  if (value instanceof Date) return isValid(value) ? value : null;
+  const trimmed = value.trim();
+  if (!trimmed || DATE_ONLY.test(trimmed)) return null;
+  // A zone designator keeps the instant stable. Without one, treat the
+  // string as UTC so the host timezone cannot shift it.
+  const hasZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(trimmed);
+  const iso = hasZone ? trimmed : `${trimmed.replace(" ", "T")}Z`;
+  const parsed = parseISO(iso);
+  return isValid(parsed) ? parsed : null;
 }
 
-export function formatDate(value: string | Date | null | undefined, pattern = "d MMM yyyy") {
-  const d = toDate(value);
-  return d ? format(d, pattern) : "—";
+/**
+ * Calendar dates (`yyyy-MM-dd`) are formatted as written. Instants are
+ * formatted in the club zone, never the server or browser zone.
+ */
+export function formatDate(
+  value: string | Date | null | undefined,
+  pattern = "d MMM yyyy",
+  timeZone: string = DEFAULT_TIME_ZONE,
+) {
+  if (!value) return "—";
+  if (typeof value === "string" && DATE_ONLY.test(value.trim())) {
+    return formatCalendarDate(value, pattern) ?? "—";
+  }
+  const instant = toDate(value);
+  return instant ? formatInTimeZone(instant, timeZone, pattern) : "—";
 }
 
-export function formatDateTime(value: string | Date | null | undefined) {
-  const d = toDate(value);
-  return d ? format(d, "d MMM yyyy 'at' HH:mm") : "—";
+export function formatDateTime(
+  value: string | Date | null | undefined,
+  timeZone: string = DEFAULT_TIME_ZONE,
+) {
+  const instant = toDate(value);
+  return instant
+    ? formatInTimeZone(instant, timeZone, "d MMM yyyy 'at' HH:mm")
+    : "—";
 }
 
 /** "3 minutes ago" / "in 2 hours". Used across the activity feed and queue. */
@@ -44,11 +73,15 @@ export interface ExpiryInfo {
  * the pilot summary and the instructor's approval screen — an instructor should
  * never have to do this arithmetic in their head.
  */
-export function getExpiryInfo(value: string | Date | null | undefined): ExpiryInfo {
-  const d = toDate(value);
-  if (!d) return { state: "unknown", days: null, label: "Not provided" };
+export function getExpiryInfo(
+  value: string | Date | null | undefined,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): ExpiryInfo {
+  const zone = resolveTimeZone(timeZone);
+  const expiry = calendarDay(value, zone);
+  if (!expiry) return { state: "unknown", days: null, label: "Not provided" };
 
-  const days = differenceInCalendarDays(d, new Date());
+  const days = calendarDaysBetween(calendarDateInTimeZone(new Date(), zone), expiry);
 
   if (days < 0) {
     const past = Math.abs(days);
@@ -86,14 +119,29 @@ export function initials(name: string | null | undefined) {
 }
 
 /**
- * Combine a date (yyyy-MM-dd) and a time (HH:mm) from the form into a real
- * timestamp. If the time is earlier than now on the same day we assume the
- * pilot means later today, not yesterday.
+ * Combine a date (`yyyy-MM-dd`) and a time (`HH:mm`) into a UTC instant.
+ * The wall clock is the club's, not the server's.
  */
-export function combineDateTime(date: string, time: string): string | null {
-  if (!date || !time) return null;
-  const combined = new Date(`${date}T${time}:00`);
-  return isValid(combined) ? combined.toISOString() : null;
+export function combineDateTime(
+  date: string,
+  time: string,
+  timeZone: string = DEFAULT_TIME_ZONE,
+): string | null {
+  const canonical = parseFlexibleTime(time);
+  if (!date || !canonical) return null;
+  return zonedWallTimeToUtc(date, canonical, timeZone)?.toISOString() ?? null;
+}
+
+function calendarDay(
+  value: string | Date | null | undefined,
+  timeZone: string,
+): string | null {
+  if (!value) return null;
+  if (typeof value === "string" && DATE_ONLY.test(value.trim())) {
+    return formatCalendarDate(value, "d MMM yyyy") ? value.trim() : null;
+  }
+  const instant = toDate(value);
+  return instant ? calendarDateInTimeZone(instant, timeZone) : null;
 }
 
 /**

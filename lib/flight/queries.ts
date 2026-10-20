@@ -3,6 +3,8 @@ import "server-only";
 import { cache } from "react";
 
 import { createServerSupabase, createServiceSupabase } from "@/lib/flight/supabase/server";
+import { getCompanySettings } from "@/lib/get-company-settings";
+import { addCalendarDays, calendarDateInTimeZone, startOfZonedDay, zonedWallTimeToUtc } from "@/lib/time-zone";
 import { asNumber } from "@/lib/flight/endurance";
 import { publicBrandingUrl } from "@/lib/flight/storage";
 import { ACTIONABLE_STATUSES } from "@/lib/flight/constants";
@@ -363,6 +365,64 @@ export async function getApprovals(authorisationId: string): Promise<Approval[]>
   return (data as Approval[]) ?? [];
 }
 
+export interface AnswerCorrectionChange {
+  key: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+}
+
+export interface AnswerCorrection {
+  id: string;
+  actor_label: string | null;
+  reason: string | null;
+  changes: AnswerCorrectionChange[];
+  created_at: string;
+}
+
+export async function getAnswerCorrections(
+  authorisationId: string,
+): Promise<AnswerCorrection[]> {
+  const supabase = await createServerSupabase();
+  const { data, error } = await supabase
+    .from("audit_logs")
+    .select("id, actor_label, reason, after, created_at")
+    .eq("entity_type", "authorisation")
+    .eq("entity_id", authorisationId)
+    .eq("action", "answers_corrected")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[queries] answer corrections failed", error);
+    return [];
+  }
+
+  return (data ?? []).map((row) => {
+    const after = row.after as { changes?: unknown } | null;
+    const changes = Array.isArray(after?.changes) ? after.changes : [];
+    return {
+      id: String(row.id),
+      actor_label: row.actor_label,
+      reason: row.reason,
+      created_at: String(row.created_at),
+      changes: changes.flatMap((change) => {
+        if (!change || typeof change !== "object") return [];
+        const entry = change as Record<string, unknown>;
+        const key = typeof entry.key === "string" ? entry.key : "";
+        if (!key) return [];
+        return [
+          {
+            key,
+            label: typeof entry.label === "string" ? entry.label : key,
+            before: entry.before ?? null,
+            after: entry.after ?? null,
+          },
+        ];
+      }),
+    };
+  });
+}
+
 export async function getActivity(authorisationId: string): Promise<ActivityEntry[]> {
   const supabase = await createServerSupabase();
   const { data } = await supabase
@@ -406,12 +466,13 @@ export async function getAuthorisationEmails(
  */
 export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
   const supabase = await createServerSupabase();
-
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const todayIso = startOfToday.toISOString();
-
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 86_400_000);
+  const { timeZone } = await getCompanySettings();
+  const now = new Date();
+  const today = calendarDateInTimeZone(now, timeZone);
+  const todayIso = startOfZonedDay(timeZone, now);
+  const trendStart =
+    zonedWallTimeToUtc(addCalendarDays(today, -13), "00:00", timeZone)?.toISOString() ??
+    todayIso;
 
   const countOf = async (
     build: (q: ReturnType<SupabaseLike["from"]>) => PromiseLike<{ count: number | null }>,
@@ -446,27 +507,28 @@ export const getDashboardStats = cache(async (): Promise<DashboardStats> => {
     supabase
       .from("pilot_profiles")
       .select("*", { count: "exact", head: true })
-      .lt("medical_expiry", new Date().toISOString().slice(0, 10))
+      .lt("medical_expiry", today)
       .then((r) => r.count ?? 0),
     supabase
       .from("pilot_profiles")
       .select("*", { count: "exact", head: true })
-      .lt("bfr_expiry", new Date().toISOString().slice(0, 10))
+      .lt("bfr_expiry", today)
       .then((r) => r.count ?? 0),
     supabase
       .from("authorisations")
       .select("submitted_at")
-      .gte("submitted_at", fourteenDaysAgo.toISOString())
+      .gte("submitted_at", trendStart)
       .not("submitted_at", "is", null),
   ]);
 
   const buckets = new Map<string, number>();
   for (let i = 13; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
-    buckets.set(d, 0);
+    buckets.set(addCalendarDays(today, -i), 0);
   }
   for (const row of trendRows.data ?? []) {
-    const key = String(row.submitted_at).slice(0, 10);
+    const submitted = row.submitted_at ? new Date(String(row.submitted_at)) : null;
+    if (!submitted || Number.isNaN(submitted.getTime())) continue;
+    const key = calendarDateInTimeZone(submitted, timeZone);
     if (buckets.has(key)) buckets.set(key, buckets.get(key)! + 1);
   }
 

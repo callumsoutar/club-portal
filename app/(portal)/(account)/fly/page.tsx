@@ -7,11 +7,12 @@ import { Button } from "@/components/flight/ui/button";
 import { Page, PageHeader, SectionHeading } from "@/components/portal/page";
 import { requireUser } from "@/lib/flight/auth";
 import { getMyAuthorisations } from "@/lib/flight/queries";
+import { getCompanySettings } from "@/lib/get-company-settings";
 
 export const metadata = { title: "My flights" };
 
 export default async function MyFlightsPage() {
-  const user = await requireUser();
+  const [user, company] = await Promise.all([requireUser(), getCompanySettings()]);
   const authorisations = await getMyAuthorisations(user.id);
 
   const active = authorisations.filter((a) =>
@@ -39,7 +40,7 @@ export default async function MyFlightsPage() {
         }
       />
 
-      <CurrencyAlert pilot={user.pilot} />
+      <CurrencyAlert pilot={user.pilot} timeZone={company.timeZone} />
 
       {isEmpty ? (
         <section className="flex flex-col items-start gap-4 rounded-xl border border-dashed px-5 py-10 sm:px-8">

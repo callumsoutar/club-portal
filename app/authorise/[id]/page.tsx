@@ -75,7 +75,7 @@ export default async function AuthoriseFormPage({
     <AuthorisationWizard
       template={template}
       sources={{ aircraft, instructors }}
-      prefill={buildAuthorisationPrefill(user)}
+      prefill={buildAuthorisationPrefill(user, company.timeZone)}
       cancelHref={cancelHref}
       companyName={company.companyName}
       clubLogoUrl={company.logoUrl}

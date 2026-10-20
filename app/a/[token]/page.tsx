@@ -131,7 +131,7 @@ export default async function GuestAuthorisationPage({
             {authorisation.return_eta ? (
               <DetailRow
                 label="Return / SAR"
-                value={formatDateTime(authorisation.return_eta)}
+                value={formatDateTime(authorisation.return_eta, company.timeZone)}
               />
             ) : null}
             {authorisation.passenger_names ? (

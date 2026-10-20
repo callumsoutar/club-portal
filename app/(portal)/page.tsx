@@ -29,7 +29,6 @@ import {
 const OPEN_STATUSES = new Set(["submitted", "pending", "approved"]);
 const REVIEW_LIMIT = 50;
 const NEW_ARTICLE_DAYS = 14;
-const CLUB_TIME_ZONE = "Pacific/Auckland";
 
 export default async function PortalHomePage() {
   const viewer = await getPortalViewer();
@@ -46,7 +45,7 @@ export default async function PortalHomePage() {
   ]);
 
   const now = new Date();
-  const today = clubDateIso(now);
+  const today = clubDateIso(now, company.timeZone);
   const isNew = (article: SafetyArticleSummary) =>
     article.publishedOn !== null && daysBetween(article.publishedOn, today) <= NEW_ARTICLE_DAYS;
 
@@ -113,7 +112,7 @@ export default async function PortalHomePage() {
                     day: "numeric",
                     month: "long",
                     year: "numeric",
-                    timeZone: CLUB_TIME_ZONE,
+                    timeZone: company.timeZone,
                   }).format(now)
                 : "Authorise your flight before you go and keep up with the club's safety messages. You don't need an account for either."
             }
@@ -125,7 +124,7 @@ export default async function PortalHomePage() {
 
       <div className="-mb-8 flex-1 bg-[oklch(0.976_0.004_255)] md:-mb-10">
         <Page width="wide" className="max-w-7xl gap-8 pt-8 md:pt-10">
-          {session ? <CurrencyAlert pilot={session.pilot} /> : null}
+          {session ? <CurrencyAlert pilot={session.pilot} timeZone={company.timeZone} /> : null}
 
           <div className="grid items-start gap-10 lg:grid-cols-[minmax(0,1fr)_18rem] xl:grid-cols-[minmax(0,1fr)_20rem] xl:gap-12">
             <div className="flex min-w-0 flex-col gap-6">
@@ -158,7 +157,7 @@ export default async function PortalHomePage() {
                   variant="aside"
                   action={{ href: PROFILE_NAV.href, label: "Edit" }}
                 >
-                  <ReminderList pilot={session.pilot} />
+                  <ReminderList pilot={session.pilot} timeZone={company.timeZone} />
                 </Section>
               ) : null}
 
@@ -272,8 +271,8 @@ function MemberPrompt() {
 }
 
 /** Today's date at the club as `YYYY-MM-DD`. */
-function clubDateIso(now: Date) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: CLUB_TIME_ZONE }).format(now);
+function clubDateIso(now: Date, timeZone: string) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone }).format(now);
 }
 
 function daysBetween(fromIso: string, toIso: string) {

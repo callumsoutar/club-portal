@@ -37,6 +37,7 @@ import {
 import { Textarea } from "@/components/flight/ui/textarea";
 import { updateMemberProfile } from "@/lib/flight/actions/admin";
 import { LICENCE_LABELS, LICENCE_SHORT } from "@/lib/flight/constants";
+import { useClubTimeZone } from "@/components/flight/club-time";
 import { formatDate, getExpiryInfo } from "@/lib/flight/format";
 import { cn } from "@/lib/flight/utils";
 import type {
@@ -80,6 +81,7 @@ export function MemberManager({
   members: MemberAccount[];
   currentUserId: string;
 }) {
+  const timeZone = useClubTimeZone();
   const [query, setQuery] = useState("");
   const [role, setRole] = useState<"all" | AppRole>("all");
   const [selected, setSelected] = useState<MemberAccount | null>(null);
@@ -199,7 +201,7 @@ export function MemberManager({
             </TableHeader>
             <TableBody>
               {filtered.map((member) => {
-                const currency = currencySummary(member.pilot);
+                const currency = currencySummary(member.pilot, timeZone);
                 const licence = member.pilot?.licence_type
                   ? LICENCE_SHORT[member.pilot.licence_type]
                   : "—";
@@ -241,7 +243,7 @@ export function MemberManager({
                       </div>
                     </TableCell>
                     <TableCell className="hidden px-4 py-4 text-[13px] text-muted-foreground lg:table-cell">
-                      {formatDate(member.profile.created_at)}
+                      {formatDate(member.profile.created_at, "d MMM yyyy", timeZone)}
                     </TableCell>
                     <TableCell className="px-3 py-4 text-right">
                       <Button
@@ -288,6 +290,7 @@ function MemberEditor({
   onClose: () => void;
 }) {
   const router = useRouter();
+  const timeZone = useClubTimeZone();
   const [pending, setPending] = useState(false);
   const pilot = member.pilot;
 
@@ -307,8 +310,8 @@ function MemberEditor({
     },
   });
 
-  const bfr = getExpiryInfo(watch("bfr_expiry"));
-  const medical = getExpiryInfo(watch("medical_expiry"));
+  const bfr = getExpiryInfo(watch("bfr_expiry"), timeZone);
+  const medical = getExpiryInfo(watch("medical_expiry"), timeZone);
 
   async function onSubmit(values: Values) {
     setPending(true);
@@ -343,7 +346,7 @@ function MemberEditor({
       <SheetHeader className="border-b border-border/70 pr-12">
         <SheetTitle>{member.profile.full_name?.trim() || "Unnamed member"}</SheetTitle>
         <SheetDescription>
-          Joined {formatDate(member.profile.created_at)}
+          Joined {formatDate(member.profile.created_at, "d MMM yyyy", timeZone)}
           {isSelf ? " · This is your account" : ""}
         </SheetDescription>
       </SheetHeader>
@@ -537,10 +540,10 @@ function CurrencyBadge({
   );
 }
 
-function currencySummary(pilot: PilotProfile | null) {
+function currencySummary(pilot: PilotProfile | null, timeZone: string) {
   const states = [
-    getExpiryInfo(pilot?.bfr_expiry).state,
-    getExpiryInfo(pilot?.medical_expiry).state,
+    getExpiryInfo(pilot?.bfr_expiry, timeZone).state,
+    getExpiryInfo(pilot?.medical_expiry, timeZone).state,
   ];
   if (states.includes("expired")) return { label: "Expired", state: "expired" as const };
   if (states.includes("expiring")) return { label: "Due soon", state: "expiring" as const };

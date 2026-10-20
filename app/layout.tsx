@@ -35,11 +35,13 @@ export const viewport: Viewport = {
   themeColor: '#fcfcfd',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const { timeZone } = await getCompanySettings()
+
   return (
     <html
       lang="en-NZ"
@@ -47,7 +49,7 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
     >
       <body className="bg-background font-sans text-foreground antialiased">
-        <Providers>{children}</Providers>
+        <Providers timeZone={timeZone}>{children}</Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>

@@ -20,6 +20,7 @@ import {
   getAuthorisationFormName,
   getExpiryInfo,
 } from "@/lib/flight/format";
+import { useClubTimeZone } from "@/components/flight/club-time";
 import { cn } from "@/lib/flight/utils";
 import type { AuthorisationWithRelations } from "@/lib/flight/types";
 
@@ -35,6 +36,7 @@ export function QueueTable({
   canArchive?: boolean;
 }) {
   const router = useRouter();
+  const timeZone = useClubTimeZone();
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
@@ -75,8 +77,8 @@ export function QueueTable({
           {rows.map((a) => {
             const href = `/fly/instructor/authorisations/${a.id}`;
 
-            const bfr = getExpiryInfo(a.pilot_bfr_expiry);
-            const medical = getExpiryInfo(a.pilot_medical_expiry);
+            const bfr = getExpiryInfo(a.pilot_bfr_expiry, timeZone);
+            const medical = getExpiryInfo(a.pilot_medical_expiry, timeZone);
             const currencyIssue =
               bfr.state === "expired" || medical.state === "expired";
             const formName = getAuthorisationFormName(a.template_snapshot);

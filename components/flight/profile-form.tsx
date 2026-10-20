@@ -19,6 +19,7 @@ import {
 } from "@/components/flight/ui/select";
 import { updateProfile } from "@/lib/flight/actions/profile";
 import { LICENCE_LABELS } from "@/lib/flight/constants";
+import { useClubTimeZone } from "@/components/flight/club-time";
 import { getExpiryInfo } from "@/lib/flight/format";
 import { cn } from "@/lib/flight/utils";
 import type { LicenceType, PilotProfile, Profile } from "@/lib/flight/types";
@@ -61,8 +62,9 @@ export function ProfileForm({ profile, pilot }: ProfileFormProps) {
     },
   });
 
-  const bfr = getExpiryInfo(watch("bfr_expiry"));
-  const medical = getExpiryInfo(watch("medical_expiry"));
+  const timeZone = useClubTimeZone();
+  const bfr = getExpiryInfo(watch("bfr_expiry"), timeZone);
+  const medical = getExpiryInfo(watch("medical_expiry"), timeZone);
   const unsaved = formState.isDirty;
 
   useEffect(() => {
