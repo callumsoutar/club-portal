@@ -16,12 +16,14 @@ import {
   TableRow,
 } from "@/components/flight/ui/table";
 import { duplicateTemplate } from "@/lib/flight/actions/admin";
+import { useClubTimeZone } from "@/components/flight/club-time";
 import { formatDate } from "@/lib/flight/format";
 import { cn } from "@/lib/flight/utils";
 import type { FormTemplate } from "@/lib/flight/types";
 
 export function TemplateManager({ templates }: { templates: Omit<FormTemplate, "sections">[] }) {
   const router = useRouter();
+  const timeZone = useClubTimeZone();
   const [duplicating, setDuplicating] = useState<string | null>(null);
 
   async function handleDuplicate(id: string) {
@@ -121,7 +123,7 @@ export function TemplateManager({ templates }: { templates: Omit<FormTemplate, "
                   </TableCell>
 
                   <TableCell className="hidden px-4 py-4 text-sm text-muted-foreground lg:table-cell">
-                    {template.published_at ? formatDate(template.published_at, "d MMM yyyy") : "—"}
+                    {template.published_at ? formatDate(template.published_at, "d MMM yyyy", timeZone) : "—"}
                   </TableCell>
 
                   <TableCell className="px-4 py-4 text-right">

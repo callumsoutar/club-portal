@@ -17,6 +17,7 @@ import {
 
 import { ArticleMeta, CategoryDot } from "@/components/safety/article-row";
 import { formatDate, getExpiryInfo } from "@/lib/flight/format";
+import { DEFAULT_TIME_ZONE } from "@/lib/time-zone";
 import type { PilotProfile } from "@/lib/flight/types";
 import {
   safetyArticleHref,
@@ -239,7 +240,13 @@ const DAYS_TONE = {
 } as const;
 
 /** Medical and BFR: when each expires and how many days are left. */
-export function ReminderList({ pilot }: { pilot: PilotProfile | null }) {
+export function ReminderList({
+  pilot,
+  timeZone = DEFAULT_TIME_ZONE,
+}: {
+  pilot: PilotProfile | null;
+  timeZone?: string;
+}) {
   const rows = [
     { label: "Medical", value: pilot?.medical_expiry },
     { label: "BFR", value: pilot?.bfr_expiry },
@@ -248,7 +255,7 @@ export function ReminderList({ pilot }: { pilot: PilotProfile | null }) {
   return (
     <ul className="divide-y divide-border/70">
       {rows.map(({ label, value }) => {
-        const info = getExpiryInfo(value);
+        const info = getExpiryInfo(value, timeZone);
         return (
           <li key={label} className="flex items-baseline justify-between gap-3 py-3">
             <div className="min-w-0">

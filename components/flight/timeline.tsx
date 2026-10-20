@@ -9,6 +9,7 @@ const VERB_TONE: Record<string, string> = {
   cancelled: "bg-muted-foreground",
   completed: "bg-success",
   commented: "bg-muted-foreground",
+  corrected: "bg-warning",
 };
 
 export function Timeline({ entries }: { entries: ActivityEntry[] }) {

@@ -10,10 +10,12 @@ import {
   companyLogoMaxBytes,
   isCompanyLogoPath,
 } from '@/lib/company-settings'
+import { isValidTimeZone } from '@/lib/time-zone'
 import { getSessionUser } from '@/lib/flight/auth'
 import { createServiceSupabase } from '@/lib/flight/supabase/server'
 
 const companyNameSchema = z.string().trim().min(2, 'Enter the club name.').max(80, 'Keep the club name under 80 characters.')
+const timeZoneSchema = z.string().trim().refine(isValidTimeZone, 'Choose a valid time zone.')
 
 export type UpdateCompanySettingsResult = { ok: true } | { ok: false; error: string }
 
@@ -27,6 +29,11 @@ export async function updateCompanySettings(formData: FormData): Promise<UpdateC
   const parsedName = companyNameSchema.safeParse(formData.get('companyName'))
   if (!parsedName.success) {
     return { ok: false, error: parsedName.error.issues[0]?.message ?? 'Enter the club name.' }
+  }
+
+  const parsedZone = timeZoneSchema.safeParse(formData.get('timeZone'))
+  if (!parsedZone.success) {
+    return { ok: false, error: parsedZone.error.issues[0]?.message ?? 'Choose a valid time zone.' }
   }
 
   const supabase = createServiceSupabase()
@@ -65,7 +72,11 @@ export async function updateCompanySettings(formData: FormData): Promise<UpdateC
 
   const { error: updateError } = await supabase
     .from('company_settings')
-    .update({ company_name: parsedName.data, logo_path: nextPath })
+    .update({
+      company_name: parsedName.data,
+      logo_path: nextPath,
+      time_zone: parsedZone.data,
+    })
     .eq('id', 1)
 
   if (updateError) {

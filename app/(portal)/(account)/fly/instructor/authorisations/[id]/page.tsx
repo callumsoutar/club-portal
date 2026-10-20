@@ -20,6 +20,8 @@ import {
   AnswerSections,
   collectIssues,
 } from "@/components/flight/authorisation/answer-sections";
+import { CorrectResponses } from "@/components/flight/authorisation/correct-responses";
+import { CorrectionLog } from "@/components/flight/authorisation/correction-log";
 import { CommentBox } from "@/components/flight/approval/comment-box";
 import {
   DecisionBar,
@@ -41,12 +43,14 @@ import {
   getActivity,
   getAllAircraft,
   getAllInstructors,
+  getAnswerCorrections,
   getAuthorisation,
   getAuthorisationEmails,
   getClubSettings,
   getComments,
 } from "@/lib/flight/queries";
 import { getSignatureUrl } from "@/lib/flight/storage";
+import { getCompanySettings } from "@/lib/get-company-settings";
 import { cn } from "@/lib/flight/utils";
 import type { ExpiryInfo } from "@/lib/flight/format";
 import type {
@@ -68,16 +72,19 @@ export default async function ApprovalPage({
   const authorisation = await getAuthorisation(id);
   if (!authorisation) notFound();
 
-  const [comments, activity, emails, aircraft, instructors, signatureUrl, club] =
+  const [comments, activity, corrections, emails, aircraft, instructors, signatureUrl, club, company] =
     await Promise.all([
       getComments(id),
       getActivity(id),
+      getAnswerCorrections(id),
       getAuthorisationEmails(id),
       getAllAircraft(),
       getAllInstructors(),
       getSignatureUrl(authorisation.signature_url),
       getClubSettings(),
+      getCompanySettings(),
     ]);
+  const timeZone = company.timeZone;
 
   const flightFigures: FlightFigures = {
     fuelBurnLph: authorisation.aircraft?.fuel_burn_lph ?? null,
@@ -87,8 +94,8 @@ export default async function ApprovalPage({
 
   const sources = { aircraft, instructors };
 
-  const bfr = getExpiryInfo(authorisation.pilot_bfr_expiry);
-  const medical = getExpiryInfo(authorisation.pilot_medical_expiry);
+  const bfr = getExpiryInfo(authorisation.pilot_bfr_expiry, timeZone);
+  const medical = getExpiryInfo(authorisation.pilot_medical_expiry, timeZone);
   const expiryByKey: Record<string, ExpiryInfo> = {
     bfr_expiry: bfr,
     medical_expiry: medical,
@@ -158,7 +165,7 @@ export default async function ApprovalPage({
                       licence,
                       authorisation.is_guest ? "Guest" : null,
                       authorisation.reference,
-                      `Submitted ${formatDateTime(authorisation.submitted_at)}`,
+                      `Submitted ${formatDateTime(authorisation.submitted_at, timeZone)}`,
                     ]
                       .filter(Boolean)
                       .join("  ·  ")}
@@ -166,6 +173,14 @@ export default async function ApprovalPage({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1">
+                  {authorisation.locked_at && authorisation.template_snapshot && (
+                    <CorrectResponses
+                      authorisationId={authorisation.id}
+                      template={authorisation.template_snapshot}
+                      answers={authorisation.answers}
+                      sources={sources}
+                    />
+                  )}
                   {authorisation.pilot_phone && (
                     <a
                       href={`tel:${authorisation.pilot_phone}`}
@@ -272,7 +287,7 @@ export default async function ApprovalPage({
                   ) : null
                 }
               >
-                <EmailLog emails={emails} />
+                <EmailLog emails={emails} timeZone={timeZone} />
               </Panel>
 
               {activity.length > 0 && (
@@ -309,6 +324,13 @@ export default async function ApprovalPage({
                 variant="plain"
               />
 
+              <CorrectionLog
+                corrections={corrections}
+                template={authorisation.template_snapshot}
+                sources={sources}
+                timeZone={timeZone}
+              />
+
               {signatureUrl && (
                 <Panel icon={PenLine} title="Pilot signature">
                   <div className="relative h-24 rounded-lg border border-dashed bg-muted/30">
@@ -321,7 +343,7 @@ export default async function ApprovalPage({
                     />
                   </div>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Signed {formatDateTime(authorisation.signed_at)}
+                    Signed {formatDateTime(authorisation.signed_at, timeZone)}
                   </p>
                 </Panel>
               )}
@@ -431,7 +453,13 @@ const EMAIL_STATUS: Record<NotificationStatus, { label: string; className: strin
   sending: { label: "Sending", className: "bg-warning-muted text-warning-foreground" },
 };
 
-function EmailLog({ emails }: { emails: AuthorisationEmail[] }) {
+function EmailLog({
+  emails,
+  timeZone,
+}: {
+  emails: AuthorisationEmail[];
+  timeZone: string;
+}) {
   if (emails.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
@@ -470,7 +498,7 @@ function EmailLog({ emails }: { emails: AuthorisationEmail[] }) {
             <p className="mt-0.5 text-xs text-muted-foreground">
               {email.status === "sent" ? "Sent" : "Recorded"} {formatRelative(when)}
               {" · "}
-              {formatDateTime(when)}
+              {formatDateTime(when, timeZone)}
             </p>
             {email.error ? (
               <p className="mt-1.5 text-xs leading-snug text-muted-foreground">

@@ -12,6 +12,7 @@ import {
   storageObjectPath,
 } from '@/lib/message-images'
 import { createClient } from '@/lib/supabase/server'
+import { getCompanySettings } from '@/lib/get-company-settings'
 import { safetyMessageSaveSchema, todayInNewZealand, type SafetyMessageSaveInput } from '@/lib/safety-message-schema'
 
 export type SaveSafetyMessageResult = { ok: true; id: number } | { ok: false; error: string }
@@ -51,8 +52,9 @@ export async function saveSafetyMessage(input: SafetyMessageSaveInput): Promise<
       ? false
       : value.id ? currentlyPublished : false
 
+  const { timeZone } = await getCompanySettings()
   const publishedDate = isPublished
-    ? (value.publishedDate || todayInNewZealand())
+    ? (value.publishedDate || todayInNewZealand(timeZone))
     : emptyToNull(value.publishedDate)
 
   const record = {

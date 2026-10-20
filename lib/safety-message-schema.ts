@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { safetyMessageCategories } from '@/lib/safety-messages'
+import { DEFAULT_TIME_ZONE, calendarDateInTimeZone } from '@/lib/time-zone'
 
 const httpsUrl = z.string().trim().regex(/^https:\/\/\S+$/, 'Use a full https link')
 
@@ -89,11 +90,6 @@ export function slugifyTitle(title: string) {
     .slice(0, 80)
 }
 
-export function todayInNewZealand() {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Pacific/Auckland',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
+export function todayInNewZealand(timeZone = DEFAULT_TIME_ZONE) {
+  return calendarDateInTimeZone(new Date(), timeZone)
 }

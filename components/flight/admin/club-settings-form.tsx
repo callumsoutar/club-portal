@@ -3,7 +3,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
-import { ImageIcon, Loader2, Mail, Timer, Trash2, Upload, Users } from "lucide-react";
+import { Globe, ImageIcon, Loader2, Mail, Timer, Trash2, Upload, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateCompanySettings } from "@/app/(portal)/(account)/admin/settings/actions";
@@ -15,10 +15,15 @@ import { Logo } from "@/components/logo";
 import { PageHeader } from "@/components/portal/page";
 import { updateClubSettings } from "@/lib/flight/actions/admin";
 import type { ClubSettings } from "@/lib/flight/types";
+import {
+  CLUB_TIME_ZONE_OPTIONS,
+  timeZoneOffsetLabel,
+} from "@/lib/time-zone";
 import { cn } from "@/lib/utils";
 
 type Values = {
   companyName: string;
+  timeZone: string;
   emails_enabled: boolean;
   member_login_enabled: boolean;
   notification_email: string;
@@ -28,11 +33,15 @@ type Values = {
 export function ClubSettingsForm({
   companyName,
   logoUrl,
+  timeZone,
   settings,
+  embedded = false,
 }: {
   companyName: string;
   logoUrl: string | null;
+  timeZone: string;
   settings: ClubSettings | null;
+  embedded?: boolean;
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -43,6 +52,7 @@ export function ClubSettingsForm({
   const form = useForm<Values>({
     defaultValues: {
       companyName,
+      timeZone,
       emails_enabled: settings?.emails_enabled ?? false,
       member_login_enabled: settings?.member_login_enabled ?? false,
       notification_email: settings?.notification_email ?? "",
@@ -52,6 +62,10 @@ export function ClubSettingsForm({
 
   const memberEmailsEnabled = form.watch("emails_enabled");
   const memberLoginEnabled = form.watch("member_login_enabled");
+  const selectedZone = form.watch("timeZone");
+  const zoneChoices = CLUB_TIME_ZONE_OPTIONS.some((option) => option.value === timeZone)
+    ? CLUB_TIME_ZONE_OPTIONS
+    : [{ value: timeZone, label: timeZone }, ...CLUB_TIME_ZONE_OPTIONS];
   const watchedName = form.watch("companyName");
   const displayName = watchedName.trim() || companyName;
   const displayLogo = removeLogo ? null : (previewUrl ?? logoUrl);
@@ -75,6 +89,7 @@ export function ClubSettingsForm({
   async function onSubmit(values: Values) {
     const body = new FormData();
     body.set("companyName", values.companyName);
+    body.set("timeZone", values.timeZone);
     if (removeLogo) body.set("removeLogo", "1");
     const file = fileRef.current?.files?.[0];
     if (file) body.set("logo", file);
@@ -108,16 +123,25 @@ export function ClubSettingsForm({
 
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-6">
-      <PageHeader
-        title="Club settings"
-        description="Club name, logo, reserve time, member login, and authorisation email."
-        actions={
+      {embedded ? (
+        <div className="flex justify-end">
           <Button type="submit" disabled={pending}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : null}
             Save settings
           </Button>
-        }
-      />
+        </div>
+      ) : (
+        <PageHeader
+          title="Club settings"
+          description="Club name, logo, local time, reserve, member login, and authorisation email."
+          actions={
+            <Button type="submit" disabled={pending}>
+              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              Save settings
+            </Button>
+          }
+        />
+      )}
 
       <div className="grid items-stretch gap-5 lg:grid-cols-2">
         <SettingsCard
@@ -187,6 +211,34 @@ export function ClubSettingsForm({
               </div>
             </Field>
           </div>
+        </SettingsCard>
+
+        <SettingsCard
+          icon={Globe}
+          title="Local time"
+          description="Submitted times, signatures, and return ETAs use this zone everywhere, including emails. Daylight saving is applied automatically."
+          className="lg:col-span-2"
+        >
+          <Field
+            label="Time zone"
+            htmlFor="timeZone"
+            hint={`Currently ${timeZoneOffsetLabel(selectedZone)}. Stored times stay in UTC; this only changes how they are shown and how a typed time is read.`}
+          >
+            <select
+              id="timeZone"
+              className={cn(
+                controlClass,
+                "w-full max-w-md rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
+              )}
+              {...form.register("timeZone")}
+            >
+              {zoneChoices.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </Field>
         </SettingsCard>
 
         <SettingsCard

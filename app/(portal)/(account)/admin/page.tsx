@@ -8,6 +8,8 @@ import { Page, PageHeader } from '@/components/portal/page'
 import { CategoryDot } from '@/components/safety/article-row'
 import { listAdminSafetyMessages } from '@/lib/admin-safety-messages'
 import { getAdminUser } from '@/lib/auth'
+import { getCompanySettings } from '@/lib/get-company-settings'
+import { formatDate } from '@/lib/flight/format'
 import { formatViewCount, safetyArticleHref } from '@/lib/safety-messages'
 import { cn } from '@/lib/utils'
 
@@ -15,17 +17,8 @@ export const metadata: Metadata = {
   title: 'Manage articles',
 }
 
-function formatUpdated(iso: string) {
-  return new Intl.DateTimeFormat('en-NZ', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'Pacific/Auckland',
-  }).format(new Date(iso))
-}
-
 export default async function AdminMessagesPage() {
-  const admin = await getAdminUser()
+  const [admin, company] = await Promise.all([getAdminUser(), getCompanySettings()])
   if (!admin) redirect('/admin/fleet')
 
   const messages = await listAdminSafetyMessages()
@@ -72,7 +65,7 @@ export default async function AdminMessagesPage() {
                   <CategoryDot category={message.category} />
                   {message.category}
                   <span aria-hidden>·</span>
-                  {message.publishedDate || `Updated ${formatUpdated(message.updatedAt)}`}
+                  {message.publishedDate || `Updated ${formatDate(message.updatedAt, "d MMM yyyy", company.timeZone)}`}
                   <span aria-hidden>·</span>
                   {formatViewCount(message.viewCount)}
                   {message.tags.length > 0 ? (

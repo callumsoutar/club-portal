@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AlertTriangle, ChevronRight } from "lucide-react";
 
 import { getExpiryInfo } from "@/lib/flight/format";
+import { DEFAULT_TIME_ZONE } from "@/lib/time-zone";
 import type { PilotProfile } from "@/lib/flight/types";
 import { cn } from "@/lib/flight/utils";
 
@@ -9,10 +10,16 @@ import { cn } from "@/lib/flight/utils";
  * BFR / medical warning for the signed-in pilot. Renders nothing while both
  * are current, so it can sit at the top of any page.
  */
-export function CurrencyAlert({ pilot }: { pilot: PilotProfile | null }) {
+export function CurrencyAlert({
+  pilot,
+  timeZone = DEFAULT_TIME_ZONE,
+}: {
+  pilot: PilotProfile | null;
+  timeZone?: string;
+}) {
   const warnings = [
-    { label: "BFR", info: getExpiryInfo(pilot?.bfr_expiry) },
-    { label: "Medical", info: getExpiryInfo(pilot?.medical_expiry) },
+    { label: "BFR", info: getExpiryInfo(pilot?.bfr_expiry, timeZone) },
+    { label: "Medical", info: getExpiryInfo(pilot?.medical_expiry, timeZone) },
   ].filter((w) => w.info.state === "expired" || w.info.state === "expiring");
 
   if (warnings.length === 0) return null;

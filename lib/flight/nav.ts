@@ -68,6 +68,13 @@ export const APP_NAV: NavItem[] = [
     section: "flying",
   },
   {
+    href: "/fly/instructor/training",
+    title: "Students",
+    icon: Users,
+    access: "instructor",
+    section: "flying",
+  },
+  {
     href: "/fly/instructor",
     title: "Review queue",
     icon: ListChecks,
@@ -157,6 +164,9 @@ export function navSections(access: NavAccessContext) {
 export function isNavActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   if (href === "/fly") return pathname === "/fly";
+  if (href === "/fly/instructor") {
+    return pathname === "/fly/instructor" || pathname.startsWith("/fly/instructor/authorisations");
+  }
   if (href === "/admin") {
     return pathname === "/admin" || pathname.startsWith("/admin/messages");
   }

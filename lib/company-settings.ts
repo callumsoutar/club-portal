@@ -16,6 +16,8 @@ export const companyLogoPathPattern =
 export type CompanySettings = {
   companyName: string
   logoUrl: string | null
+  /** IANA zone used for every operational timestamp. */
+  timeZone: string
 }
 
 export function companyLogoExtension(file: File) {
