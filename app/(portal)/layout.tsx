@@ -18,6 +18,7 @@ export default async function PortalLayout({
     <AppShell
       role={viewer.role}
       safetyAdmin={viewer.safetyAdmin}
+      trainingStudent={viewer.trainingStudent}
       user={viewer.user}
       companyName={viewer.company.companyName}
       logoUrl={viewer.company.logoUrl}

@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   ClipboardCheck,
+  GraduationCap,
   House,
   ListChecks,
   Megaphone,
@@ -34,11 +35,14 @@ export interface NavItem {
   icon: LucideIcon;
   access: NavAccess;
   section: NavSection;
+  /** Extra visibility rule on top of the role check. */
+  when?: "training-student";
 }
 
 export interface NavAccessContext {
   role: AppRole | null;
   safetyAdmin: boolean;
+  trainingStudent?: boolean;
 }
 
 export const NAV_SECTION_LABELS: Record<NavSection, string | null> = {
@@ -60,6 +64,21 @@ export const APP_NAV: NavItem[] = [
   { href: "/", title: "Home", icon: House, access: "public", section: "home" },
   { ...AUTHORISE_NAV, access: "public", section: "home" },
   { href: "/safety", title: "Safety Hub", icon: BookOpen, access: "public", section: "home" },
+  {
+    href: "/training",
+    title: "Training",
+    icon: GraduationCap,
+    access: "instructor",
+    section: "home",
+  },
+  {
+    href: "/training/me",
+    title: "My training",
+    icon: GraduationCap,
+    access: "member",
+    section: "home",
+    when: "training-student",
+  },
   {
     href: "/fly",
     title: "My flights",
@@ -145,6 +164,7 @@ const ROLE_RANK: Record<AppRole, number> = {
 };
 
 export function canAccessNav(item: NavItem, access: NavAccessContext) {
+  if (item.when === "training-student" && !access.trainingStudent) return false;
   if (item.access === "public") return true;
   if (item.access === "club") return access.safetyAdmin || access.role === "admin";
   if (item.access === "safety") return access.safetyAdmin;
@@ -169,6 +189,9 @@ export function isNavActive(pathname: string, href: string) {
   }
   if (href === "/admin") {
     return pathname === "/admin" || pathname.startsWith("/admin/messages");
+  }
+  if (href === "/training") {
+    return pathname === "/training" || (pathname.startsWith("/training/") && !pathname.startsWith("/training/me"));
   }
   if (href === "/admin/settings") {
     return (
