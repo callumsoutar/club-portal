@@ -1,13 +1,11 @@
-import Link from "next/link";
-
-import { EditFlightButton, RemoveFlightButton } from "@/components/ccat/log-flight-dialog";
-import { ExerciseChips, formatHours } from "@/components/ccat/student-record";
+import { FlightLog } from "@/components/ccat/flight-log";
+import { formatHours } from "@/components/ccat/student-record";
 import { Page, PageHeader } from "@/components/portal/page";
 import { getCcatDirectory, progressFor } from "@/lib/ccat/queries";
 import { buildFlightContext } from "@/lib/ccat/present";
 import { requireStaff } from "@/lib/flight/auth";
-import { getActiveAircraft, getActiveInstructors } from "@/lib/flight/queries";
 import { formatDate } from "@/lib/flight/format";
+import { getActiveAircraft, getActiveInstructors } from "@/lib/flight/queries";
 import { getCompanySettings } from "@/lib/get-company-settings";
 import { calendarDateInTimeZone } from "@/lib/time-zone";
 
@@ -33,57 +31,31 @@ export default async function FlightLogPage() {
     actorId: user.id,
     today,
   });
-  const flights = directory.flights
+  const entries = directory.flights
     .filter((flight) => !flight.voidedAt)
-    .sort((a, b) => b.flownOn.localeCompare(a.flownOn) || b.id.localeCompare(a.id));
+    .sort((a, b) => b.flownOn.localeCompare(a.flownOn) || b.id.localeCompare(a.id))
+    .map((flight) => {
+      const student = directory.students.find((entry) => entry.id === flight.studentId);
+      return {
+        flight,
+        studentName: student?.fullName ?? "Student",
+        studentHref: student ? `/training/students/${student.id}` : null,
+        dateLabel: formatDate(flight.flownOn),
+        aircraft: flight.aircraftRegistration || "—",
+        instructor: flight.instructorName || "—",
+        dual: flight.dualHours > 0 ? formatHours(flight.dualHours) : "—",
+        solo: flight.soloHours > 0 ? formatHours(flight.soloHours) : "—",
+      };
+    });
 
   return (
     <Page width="wide">
       <PageHeader
-        eyebrow="Training"
+        eyebrow="C Cat"
         title="Flight log"
-        description="C Cat training flights, newest first. Open a student to sign off lectures, briefings, or ground knowledge."
+        description="Training flights, newest first. Search by student, aircraft, or exercise."
       />
-      {flights.length === 0 ? (
-        <p className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-          No flights recorded yet.
-        </p>
-      ) : (
-        <ul className="divide-y rounded-xl border bg-card">
-          {flights.map((flight) => {
-            const student = directory.students.find((entry) => entry.id === flight.studentId);
-            return (
-              <li key={flight.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium">
-                    {student ? (
-                      <Link href={`/training/students/${student.id}`} className="hover:underline">
-                        {student.fullName}
-                      </Link>
-                    ) : (
-                      "Student"
-                    )}
-                    <span className="font-normal text-muted-foreground"> · {formatDate(flight.flownOn)}</span>
-                  </p>
-                  <p className="mt-0.5 text-sm text-muted-foreground">
-                    {flight.instructorName || "Instructor not recorded"}
-                    {" · "}
-                    {flight.aircraftRegistration || "No aircraft"}
-                    {" · "}
-                    {formatHours(flight.dualHours)} dual · {formatHours(flight.soloHours)} solo
-                  </p>
-                  <ExerciseChips learnt={flight.learnt} taught={flight.taught} />
-                  {flight.notes ? <p className="mt-2 text-sm text-muted-foreground">{flight.notes}</p> : null}
-                </div>
-                <div className="flex shrink-0 gap-2">
-                  <EditFlightButton context={context} flight={flight} />
-                  <RemoveFlightButton id={flight.id} />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <FlightLog entries={entries} context={context} />
     </Page>
   );
 }

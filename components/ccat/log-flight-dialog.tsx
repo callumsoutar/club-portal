@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { saveFlight, voidFlight } from "@/lib/ccat/actions";
@@ -66,30 +66,33 @@ export function LogFlightButton({ context }: { context: FlightFormContext }) {
 export function EditFlightButton({
   context,
   flight,
+  compact = false,
 }: {
   context: FlightFormContext;
   flight: FlightDraft;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [session, setSession] = useState(0);
   return (
     <>
       <Button
-        size="sm"
-        variant="outline"
+        size={compact ? "icon-sm" : "sm"}
+        variant={compact ? "ghost" : "outline"}
+        aria-label="Edit flight"
         onClick={() => {
           setSession((value) => value + 1);
           setOpen(true);
         }}
       >
-        Edit
+        {compact ? <Pencil /> : "Edit"}
       </Button>
       <FlightDialog key={session} open={open} onOpenChange={setOpen} context={context} flight={flight} />
     </>
   );
 }
 
-export function RemoveFlightButton({ id }: { id: string }) {
+export function RemoveFlightButton({ id, compact = false }: { id: string; compact?: boolean }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -107,8 +110,14 @@ export function RemoveFlightButton({ id }: { id: string }) {
   }
 
   return (
-    <Button size="sm" variant="ghost" onClick={remove} disabled={pending}>
-      Remove
+    <Button
+      size={compact ? "icon-sm" : "sm"}
+      variant="ghost"
+      aria-label="Remove flight"
+      onClick={remove}
+      disabled={pending}
+    >
+      {compact ? <Trash2 /> : "Remove"}
     </Button>
   );
 }

@@ -310,10 +310,10 @@ function StudentRow({
   return (
     <tr
       className="cursor-pointer border-b last:border-b-0 hover:bg-muted/30"
-      onClick={() => router.push(`/fly/instructor/training/${row.userId}`)}
+      onClick={() => router.push(`/training/enrolments/${row.userId}`)}
     >
       <td className="px-4 py-3">
-        <Link href={`/fly/instructor/training/${row.userId}`} className="flex min-w-0 items-center gap-3" onClick={(event) => event.stopPropagation()}>
+        <Link href={`/training/enrolments/${row.userId}`} className="flex min-w-0 items-center gap-3" onClick={(event) => event.stopPropagation()}>
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold">
             {initials(row.studentName)}
           </span>
@@ -346,6 +346,7 @@ function StudentRow({
           <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
             <div className="h-full rounded-full bg-indigo-500" style={{ width: `${row.percent ?? 0}%` }} />
           </div>
+          <p className="mt-1.5 text-xs text-pretty text-muted-foreground">{row.stageLabel}</p>
         </div>
       </td>
       <td className="px-3 py-3">
@@ -354,7 +355,7 @@ function StudentRow({
         </span>
       </td>
       <td className="px-3 py-3">
-        <Link href={`/fly/instructor/training/${row.userId}`} aria-label={`Open ${row.studentName}`} className="text-muted-foreground hover:text-foreground">
+        <Link href={`/training/enrolments/${row.userId}`} aria-label={`Open ${row.studentName}`} className="text-muted-foreground hover:text-foreground">
           <ChevronRight className="size-4" aria-hidden />
         </Link>
       </td>
