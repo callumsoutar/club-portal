@@ -20,20 +20,21 @@ export interface ShellUser {
 interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
   flightRole: AppRole | null;
   safetyAdmin: boolean;
+  trainingStudent?: boolean;
 }
 
 /**
  * Full-height navigation rail. The logo and account menu live in the top bar;
  * the rail's header row lines up with that bar and holds the collapse toggle.
  */
-export function AppSidebar({ flightRole, safetyAdmin, ...props }: AppSidebarProps) {
-  const sections = navSections({ role: flightRole, safetyAdmin });
+export function AppSidebar({ flightRole, safetyAdmin, trainingStudent = false, ...props }: AppSidebarProps) {
+  const sections = navSections({ role: flightRole, safetyAdmin, trainingStudent });
   const secondary = flightRole
     ? [{ title: PROFILE_NAV.title, href: PROFILE_NAV.href, icon: PROFILE_NAV.icon }]
     : [];
 
   return (
-    <Sidebar collapsible="icon" className="border-sidebar-border" {...props}>
+    <Sidebar collapsible="icon" className="border-sidebar-border print:hidden" {...props}>
       <SidebarHeader className="h-(--header-height) flex-row items-center border-b border-sidebar-border px-2.5 py-0 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-2">
         <SidebarTrigger className="size-8 text-sidebar-foreground/70 hover:bg-white/[0.06] hover:text-white" />
       </SidebarHeader>

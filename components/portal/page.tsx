@@ -38,6 +38,7 @@ export function PageHeader({
   actions,
   back,
   eyebrow,
+  leading,
   className,
 }: {
   title: React.ReactNode;
@@ -46,8 +47,26 @@ export function PageHeader({
   actions?: React.ReactNode;
   back?: { href: string; label: string };
   eyebrow?: React.ReactNode;
+  /** Mark beside the title, such as an avatar on a person page. */
+  leading?: React.ReactNode;
   className?: string;
 }) {
+  const identity = (
+    <div className={cn("min-w-0", leading ? "space-y-1" : "space-y-1.5")}>
+      {eyebrow ? (
+        <p className="text-sm font-medium text-primary">{eyebrow}</p>
+      ) : null}
+      <h1 className="text-2xl font-semibold tracking-[-0.025em] text-balance text-foreground sm:text-[1.75rem] sm:leading-tight">
+        {title}
+      </h1>
+      {description ? (
+        <div className="max-w-2xl text-[15px] leading-relaxed text-pretty text-muted-foreground">
+          {description}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <header className={cn("flex flex-col gap-4", className)}>
       {back ? (
@@ -59,20 +78,20 @@ export function PageHeader({
           {back.label}
         </Link>
       ) : null}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0 space-y-1.5">
-          {eyebrow ? (
-            <p className="text-sm font-medium text-primary">{eyebrow}</p>
-          ) : null}
-          <h1 className="text-2xl font-semibold tracking-[-0.025em] text-balance text-foreground sm:text-[1.75rem] sm:leading-tight">
-            {title}
-          </h1>
-          {description ? (
-            <p className="max-w-2xl text-[15px] leading-relaxed text-pretty text-muted-foreground">
-              {description}
-            </p>
-          ) : null}
-        </div>
+      <div
+        className={cn(
+          "flex flex-col gap-4 sm:flex-row sm:justify-between",
+          leading ? "sm:items-center" : "sm:items-end",
+        )}
+      >
+        {leading ? (
+          <div className="flex min-w-0 flex-1 items-center gap-4">
+            {leading}
+            {identity}
+          </div>
+        ) : (
+          identity
+        )}
         {actions ? (
           <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center [&>*]:w-full sm:[&>*]:w-auto">
             {actions}

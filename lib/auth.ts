@@ -62,8 +62,8 @@ export function landingPath(input: {
   const { nextPath, safetyAdmin, flightRole } = input
   const flightAdmin = flightRole === 'admin'
   const adminNext = nextPath === '/admin' || nextPath?.startsWith('/admin/') || nextPath === '/tv' || nextPath?.startsWith('/tv?')
-  const adminFlightNext =
-    Boolean(nextPath?.startsWith('/fly/instructor')) || isTrafficPath(nextPath)
+  const reviewNext = Boolean(nextPath?.startsWith('/fly/instructor'))
+  const flightStaff = flightRole === 'instructor' || flightRole === 'admin'
   const memberFlightNext =
     nextPath === '/fly' ||
     nextPath === '/fly/profile' ||
@@ -75,7 +75,8 @@ export function landingPath(input: {
   const hasAccess = safetyAdmin || flightRole !== null
 
   if (nextPath && adminNext && (safetyAdmin || flightAdmin)) return nextPath
-  if (nextPath && adminFlightNext && flightAdmin) return nextPath
+  if (nextPath && reviewNext && flightStaff) return nextPath
+  if (nextPath && isTrafficPath(nextPath) && flightAdmin) return nextPath
   if (nextPath && memberFlightNext && flightRole) return nextPath
   if (nextPath && portalNext && hasAccess) return nextPath
   if (hasAccess) return '/'

@@ -2,6 +2,7 @@ import "server-only";
 
 import { getAdminUser } from "@/lib/auth";
 import { getSessionUser } from "@/lib/flight/auth";
+import { hasPermission } from "@/lib/flight/permissions";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
 import type { MemberAccount, PilotProfile, Profile } from "@/lib/flight/types";
 
@@ -12,6 +13,11 @@ type ProfileRow = Profile & {
 /** Flight admins and safety editors can open the member directory. */
 export async function requireMemberAdmin(): Promise<{ id: string; email: string } | null> {
   const [session, safetyAdmin] = await Promise.all([getSessionUser(), getAdminUser()]);
+  const allowed = hasPermission(
+    { flightRole: session?.profile.role ?? null, safetyAdmin: safetyAdmin !== null },
+    "members.manage",
+  );
+  if (!allowed) return null;
 
   if (session?.profile.role === "admin") {
     return { id: session.id, email: session.email };

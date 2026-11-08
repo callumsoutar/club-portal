@@ -7,6 +7,7 @@ import { getAdminUser } from "@/lib/auth";
 import { audit } from "@/lib/flight/audit";
 import { displayNameMetadata } from "@/lib/flight/auth-name";
 import { getSessionUser } from "@/lib/flight/auth";
+import { hasPermission } from "@/lib/flight/permissions";
 import { requireMemberAdmin } from "@/lib/flight/members";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
 import {
@@ -15,7 +16,7 @@ import {
 } from "@/lib/flight/storage";
 import type { ActionResult } from "@/lib/flight/actions/authorisations";
 
-/** Every export in this file is admin-only; this is the single choke point. */
+/** Flight-admin mutations use this. Club settings and the member directory check their own permissions. */
 async function requireAdminActor() {
   const user = await getSessionUser();
   if (!user || user.profile.role !== "admin") return null;
@@ -472,8 +473,14 @@ export async function updateClubSettings(
     getSessionUser(),
     getAdminUser(),
   ]);
-  const flightAdmin = user?.profile.role === "admin";
-  if (!flightAdmin && !safetyAdmin) return denied();
+  if (
+    !hasPermission(
+      { flightRole: user?.profile.role ?? null, safetyAdmin: safetyAdmin !== null },
+      "club.settings",
+    )
+  ) {
+    return denied();
+  }
 
   const parsed = clubSettingsSchema.safeParse(raw);
   if (!parsed.success) return firstIssue(parsed.error);

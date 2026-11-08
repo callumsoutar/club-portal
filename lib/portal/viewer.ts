@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 
 import { getAdminUser } from "@/lib/auth";
+import { createServerSupabase } from "@/lib/flight/supabase/server";
 import type { CompanySettings } from "@/lib/company-settings";
 import { getSessionUser, type SessionUser } from "@/lib/flight/auth";
 import { isMemberLoginEnabled } from "@/lib/flight/queries";
@@ -17,6 +18,7 @@ export interface PortalViewer {
   user: { name: string | null; email: string } | null;
   company: CompanySettings;
   memberLoginEnabled: boolean;
+  trainingStudent: boolean;
 }
 
 /**
@@ -39,6 +41,16 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer> => {
     sessionRole === "member" && !memberLoginEnabled && !safetyAdmin;
   const role = memberBlocked ? null : sessionRole;
   const signedIn = Boolean(session) || safetyAdmin;
+  let trainingStudent = false;
+  if (session && !memberBlocked) {
+    const supabase = await createServerSupabase();
+    const { data, error } = await supabase
+      .from("ccat_students")
+      .select("id")
+      .eq("profile_id", session.id)
+      .limit(1);
+    trainingStudent = !error && Array.isArray(data) && data.length > 0;
+  }
 
   return {
     session: memberBlocked ? null : session,
@@ -52,5 +64,6 @@ export const getPortalViewer = cache(async (): Promise<PortalViewer> => {
       : null,
     company,
     memberLoginEnabled,
+    trainingStudent,
   };
 });
