@@ -1,6 +1,6 @@
-export type SignoffMode = "learnt_taught" | "single";
+export type SignoffMode = "learnt_taught" | "single" | "delivery";
 
-export type EventKind = "learnt" | "taught" | "completed";
+export type EventKind = "learnt" | "taught" | "completed" | "delivered" | "received";
 
 export type IntakeStatus = "active" | "archived";
 

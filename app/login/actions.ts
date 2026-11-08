@@ -42,3 +42,21 @@ export async function signIn(input: { email: string; password: string; nextPath?
 
   redirect(result.destination)
 }
+
+/** Shared by password login and the signup code form after a session exists. */
+export async function resolvePostAuthDestination(nextPath: string | null) {
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) return { error: 'Please sign in again.' }
+
+  const result = await resolveSignedInDestination(supabase, user.id, safeNextPath(nextPath))
+  if ('error' in result) {
+    await supabase.auth.signOut()
+    return { error: signInErrorMessage(result.error) }
+  }
+
+  return { destination: result.destination }
+}

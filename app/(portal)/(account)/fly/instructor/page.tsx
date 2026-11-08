@@ -8,7 +8,8 @@ import { QueueFilters } from "@/components/flight/queue/queue-filters";
 import { QueueTable } from "@/components/flight/queue/queue-table";
 import { Separator } from "@/components/flight/ui/separator";
 import { Skeleton } from "@/components/flight/ui/skeleton";
-import { requireAdmin } from "@/lib/flight/auth";
+import { requirePermission } from "@/lib/flight/auth";
+import { hasPermission } from "@/lib/flight/permissions";
 import { ACTIONABLE_STATUSES } from "@/lib/flight/constants";
 import {
   getAllAircraft,
@@ -34,8 +35,11 @@ export default async function AuthorisationsPage({
 }: {
   searchParams: SearchParams;
 }) {
-  const user = await requireAdmin();
-  const canArchive = user.profile.role === "admin";
+  const user = await requirePermission("authorisations.review");
+  const canArchive = hasPermission(
+    { flightRole: user.profile.role, safetyAdmin: false },
+    "authorisations.archive",
+  );
 
   const params = await searchParams;
   const [aircraft, instructors, stats] = await Promise.all([

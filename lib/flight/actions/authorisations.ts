@@ -11,7 +11,7 @@ import { buildTemplateSchema, indexFields } from "@/lib/flight/form-engine";
 import { notify } from "@/lib/flight/notifications/service";
 import { getAuthorisation, getPublishedTemplateById } from "@/lib/flight/queries";
 import { displayNameMetadata } from "@/lib/flight/auth-name";
-import { getSessionUser } from "@/lib/flight/auth";
+import { getSessionUser, userHasPermission } from "@/lib/flight/auth";
 import { uploadSignature } from "@/lib/flight/storage";
 import { createServiceSupabase } from "@/lib/flight/supabase/server";
 import { combineDateTime, formatDate, formatDateTime } from "@/lib/flight/format";
@@ -334,7 +334,7 @@ async function decide(
   if (!parsed.success) return { ok: false, error: "Invalid request." };
 
   const user = await getSessionUser();
-  if (!user || user.profile.role !== "admin") {
+  if (!user || !(await userHasPermission("authorisations.approve"))) {
     return { ok: false, error: "You don't have permission to do that." };
   }
 
@@ -448,7 +448,7 @@ export async function addComment(
   const existing = await getAuthorisation(authorisationId);
   if (!existing) return { ok: false, error: "Authorisation not found." };
 
-  const isStaff = user.profile.role === "admin";
+  const isStaff = await userHasPermission("authorisations.review");
   if (!isStaff && existing.profile_id !== user.id) {
     return { ok: false, error: "You don't have permission to comment here." };
   }
@@ -494,7 +494,7 @@ export async function addComment(
 
 export async function markCompleted(authorisationId: string): Promise<ActionResult> {
   const user = await getSessionUser();
-  if (!user || user.profile.role !== "admin") {
+  if (!user || !(await userHasPermission("authorisations.archive"))) {
     return { ok: false, error: "You don't have permission to do that." };
   }
 
@@ -533,7 +533,7 @@ export async function archiveAuthorisation(
   const user = await getSessionUser();
   if (!user) return { ok: false, error: "Please sign in." };
 
-  if (user.profile.role !== "admin") {
+  if (!(await userHasPermission("authorisations.archive"))) {
     return { ok: false, error: "Only an admin can archive authorisations." };
   }
 

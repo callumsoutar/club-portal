@@ -3,7 +3,9 @@ import type { CcatEvent, CcatFlight, CcatItem, CcatStudent } from "@/lib/ccat/ty
 export interface SignoffStamp {
   eventId: string;
   date: string;
+  instructorId: string | null;
   instructorName: string | null;
+  notes: string | null;
 }
 
 export interface ItemProgress {
@@ -11,7 +13,11 @@ export interface ItemProgress {
   learnt: SignoffStamp | null;
   taught: SignoffStamp | null;
   completed: SignoffStamp | null;
-  status: "not_started" | "learnt" | "taught" | "complete";
+  /** Every delivery of a POF lecture or pre-flight briefing. */
+  deliveries: SignoffStamp[];
+  /** The one sign-off that means the student has received it. */
+  received: SignoffStamp | null;
+  status: "not_started" | "learnt" | "taught" | "delivered" | "complete";
 }
 
 export interface StudentProgress {
@@ -44,30 +50,40 @@ function percent(done: number, total: number) {
   return Math.round((done / total) * 100);
 }
 
-function earliest(events: CcatEvent[], kind: CcatEvent["kind"], itemId: string) {
-  let best: CcatEvent | null = null;
-  for (const event of events) {
-    if (event.voidedAt || event.itemId !== itemId || event.kind !== kind) continue;
-    if (!best || event.eventDate < best.eventDate) best = event;
-  }
-  if (!best) return null;
+function stamp(event: CcatEvent): SignoffStamp {
   return {
-    eventId: best.id,
-    date: best.eventDate,
-    instructorName: best.instructorName,
-  } satisfies SignoffStamp;
+    eventId: event.id,
+    date: event.eventDate,
+    instructorId: event.instructorId,
+    instructorName: event.instructorName,
+    notes: event.notes,
+  };
+}
+
+function matching(events: CcatEvent[], kind: CcatEvent["kind"], itemId: string) {
+  return events
+    .filter((event) => !event.voidedAt && event.itemId === itemId && event.kind === kind)
+    .sort((a, b) => a.eventDate.localeCompare(b.eventDate) || a.id.localeCompare(b.id));
+}
+
+function earliest(events: CcatEvent[], kind: CcatEvent["kind"], itemId: string) {
+  const best = matching(events, kind, itemId)[0];
+  return best ? stamp(best) : null;
 }
 
 export function itemProgress(item: CcatItem, events: CcatEvent[]): ItemProgress {
   const learnt = item.signoffMode === "learnt_taught" ? earliest(events, "learnt", item.id) : null;
   const taught = item.signoffMode === "learnt_taught" ? earliest(events, "taught", item.id) : null;
   const completed = item.signoffMode === "single" ? earliest(events, "completed", item.id) : null;
+  const deliveries = item.signoffMode === "delivery" ? matching(events, "delivered", item.id).map(stamp) : [];
+  const received = item.signoffMode === "delivery" ? earliest(events, "received", item.id) : null;
   let status: ItemProgress["status"] = "not_started";
   if (item.signoffMode === "single") status = completed ? "complete" : "not_started";
+  else if (item.signoffMode === "delivery") status = received ? "complete" : deliveries.length > 0 ? "delivered" : "not_started";
   else if (learnt && taught) status = "complete";
   else if (learnt) status = "learnt";
   else if (taught) status = "taught";
-  return { item, learnt, taught, completed, status };
+  return { item, learnt, taught, completed, deliveries, received, status };
 }
 
 function categoryPct(items: ItemProgress[], key: string) {

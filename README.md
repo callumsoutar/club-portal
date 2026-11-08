@@ -24,6 +24,8 @@ Access is enforced on the server in layouts, pages, and server actions, and by S
 
 If a club turns off member login, members are sent to `/authorise`. Guests can still submit and track authorisations.
 
+How sign-in, permissions, and row level security fit together is documented in [docs/security](docs/security/README.md). Navigation only hides links. It does not grant access.
+
 ## Stack
 
 - Next.js 16 (App Router) and React 19, TypeScript
@@ -77,6 +79,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```bash
 pnpm lint        # ESLint
 pnpm typecheck   # TypeScript
+pnpm test        # Permission matrix
 pnpm build       # Production build
 pnpm start       # Serve the production build
 ```

@@ -22,7 +22,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     ["Dual hours", String(progress.dualHours)],
     ["Solo hours", String(progress.soloHours)],
     [],
-    ["Category", "Exercise", "Learnt", "Learnt instructor", "Taught", "Taught instructor", "Completed", "Completed instructor"],
+    ["Category", "Exercise", "Learnt", "Learnt instructor", "Taught", "Taught instructor", "Completed", "Completed instructor", "Received", "Received instructor", "Deliveries"],
     ...progress.items.map((row) => [
       row.item.categoryName,
       row.item.name,
@@ -32,6 +32,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
       row.taught?.instructorName ?? "",
       row.completed?.date ?? "",
       row.completed?.instructorName ?? "",
+      row.received?.date ?? "",
+      row.received?.instructorName ?? "",
+      row.deliveries.map((delivery) => `${delivery.date}${delivery.instructorName ? ` ${delivery.instructorName}` : ""}`).join("; "),
     ]),
     [],
     ["Date", "Aircraft", "Instructor", "Dual", "Solo", "Taught", "Learnt", "Notes"],

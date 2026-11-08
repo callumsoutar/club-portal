@@ -14,20 +14,28 @@ import {
   Wrench,
 } from "lucide-react";
 
+import { hasPermission, type Permission } from "@/lib/flight/permissions";
 import type { AppRole } from "@/lib/flight/types";
 
 export type NavSection = "home" | "flying" | "safety" | "club";
 
 /**
- * Who can see a nav item. This only controls visibility: every destination
- * enforces its own access on the server.
+ * Who can see a nav item. Visibility only: every destination enforces access
+ * on the server. `canAccessNav` checks the permission catalog, not this label.
  *
  * - `public`: everyone, including signed-out visitors
- * - `member` / `instructor` / `admin`: minimum flight role
+ * - `member` / `instructor` / `admin`: minimum flight role described by the item
  * - `safety`: safety editors (`user_roles.admin`)
  * - `club`: safety editors or flight admins
  */
 export type NavAccess = "public" | AppRole | "safety" | "club";
+
+export interface NavChild {
+  href: string;
+  title: string;
+  /** Hidden from instructors. The parent route still enforces access. */
+  admin?: boolean;
+}
 
 export interface NavItem {
   href: string;
@@ -37,6 +45,7 @@ export interface NavItem {
   section: NavSection;
   /** Extra visibility rule on top of the role check. */
   when?: "training-student";
+  children?: NavChild[];
 }
 
 export interface NavAccessContext {
@@ -70,6 +79,12 @@ export const APP_NAV: NavItem[] = [
     icon: GraduationCap,
     access: "instructor",
     section: "home",
+    children: [
+      { href: "/training", title: "Students" },
+      { href: "/training/flights", title: "Flight log" },
+      { href: "/training/questions", title: "POF questions" },
+      { href: "/training/syllabus", title: "Syllabus", admin: true },
+    ],
   },
   {
     href: "/training/me",
@@ -97,7 +112,7 @@ export const APP_NAV: NavItem[] = [
     href: "/fly/instructor",
     title: "Review queue",
     icon: ListChecks,
-    access: "admin",
+    access: "instructor",
     section: "flying",
   },
   {
@@ -157,28 +172,51 @@ export const PROFILE_NAV = {
   icon: UserRound,
 } as const;
 
-const ROLE_RANK: Record<AppRole, number> = {
-  member: 0,
-  instructor: 1,
-  admin: 2,
+/** Href to permission. Public routes are omitted. */
+const NAV_PERMISSION: Record<string, Permission> = {
+  "/training": "training.record",
+  "/training/me": "flights.read",
+  "/fly": "flights.read",
+  "/fly/instructor/training": "training.record",
+  "/fly/instructor": "authorisations.review",
+  "/traffic": "traffic.read",
+  "/admin": "safety.manage",
+  "/admin/fleet": "fleet.manage",
+  "/admin/instructors": "instructors.manage",
+  "/admin/members": "members.manage",
+  "/admin/form-builder": "forms.manage",
+  "/admin/settings": "club.settings",
 };
 
 export function canAccessNav(item: NavItem, access: NavAccessContext) {
   if (item.when === "training-student" && !access.trainingStudent) return false;
   if (item.access === "public") return true;
-  if (item.access === "club") return access.safetyAdmin || access.role === "admin";
-  if (item.access === "safety") return access.safetyAdmin;
-  if (!access.role) return false;
-  return ROLE_RANK[access.role] >= ROLE_RANK[item.access];
+  const permission = NAV_PERMISSION[item.href];
+  if (!permission) return false;
+  return hasPermission(
+    { flightRole: access.role, safetyAdmin: access.safetyAdmin },
+    permission,
+  );
 }
 
 export function navSections(access: NavAccessContext) {
-  const items = APP_NAV.filter((item) => canAccessNav(item, access));
+  const items = APP_NAV.filter((item) => canAccessNav(item, access)).map((item) => ({
+    ...item,
+    children: item.children?.filter((child) => !child.admin || access.role === "admin"),
+  }));
   return SECTION_ORDER.map((key) => ({
     key,
     label: NAV_SECTION_LABELS[key],
     items: items.filter((item) => item.section === key),
   })).filter((section) => section.items.length > 0);
+}
+
+/** Which training submenu row is current. The Students row also covers a student's record. */
+export function isNavChildActive(pathname: string, href: string, parentHref: string) {
+  if (href === parentHref) {
+    return pathname === parentHref || pathname.startsWith(`${parentHref}/students`);
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function isNavActive(pathname: string, href: string) {
@@ -207,6 +245,10 @@ export function pageTitleFromPath(pathname: string): string {
   if (isNavActive(pathname, PROFILE_NAV.href)) return PROFILE_NAV.title;
   if (isNavActive(pathname, AUTHORISE_NAV.href)) return AUTHORISE_NAV.title;
   if (pathname === "/safety" || pathname.startsWith("/safety/")) return "Safety Hub";
+  for (const item of APP_NAV) {
+    const child = item.children?.find((entry) => isNavChildActive(pathname, entry.href, item.href));
+    if (child && isNavActive(pathname, item.href)) return child.title;
+  }
   const item = APP_NAV.find((entry) => isNavActive(pathname, entry.href));
   return item?.title ?? "";
 }

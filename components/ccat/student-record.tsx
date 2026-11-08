@@ -3,9 +3,8 @@ import Link from "next/link";
 import { ClearSignoffButton, SignoffButton } from "@/components/ccat/record-dialogs";
 import { EditFlightButton, RemoveFlightButton } from "@/components/ccat/log-flight-dialog";
 import type { FlightFormContext } from "@/lib/ccat/present";
-import { progressSeries } from "@/lib/ccat/progress";
-import type { ItemProgress } from "@/lib/ccat/progress";
-import type { CcatAudit, CcatEvent, CcatFlight, CcatItem } from "@/lib/ccat/types";
+import type { ItemProgress, StudentProgress } from "@/lib/ccat/progress";
+import type { CcatAudit, CcatFlight, CcatItem } from "@/lib/ccat/types";
 import { formatDate } from "@/lib/flight/format";
 import { Progress } from "@/components/flight/ui/progress";
 import { cn } from "@/lib/utils";
@@ -14,44 +13,194 @@ const STATUS_LABEL = {
   complete: "Complete",
   learnt: "Learnt",
   taught: "Taught",
+  delivered: "Delivered",
   not_started: "Not started",
 } as const;
 
-export function StudentProgressSummary({
-  learnt,
-  taught,
-  overall,
-  dual,
-  solo,
+const STATUS_CLASS = {
+  complete: "bg-success-muted text-success",
+  learnt: "bg-primary/10 text-primary",
+  taught: "bg-warning-muted text-warning-foreground",
+  delivered: "bg-primary/10 text-primary",
+  not_started: "bg-muted text-muted-foreground",
+} as const;
+
+const CATEGORY_COPY: Record<string, { detail: string; empty: string }> = {
+  flight: {
+    detail: "A lesson is complete once the student has learnt it and taught it back.",
+    empty: "Flight lessons will appear here once they are on the syllabus.",
+  },
+  pof: {
+    detail: "Record each time a lecture is delivered. Mark it received once, with the instructor and date, when the student has had it.",
+    empty: "POF lectures will appear here once they are on the syllabus.",
+  },
+  briefing: {
+    detail: "Record each time a briefing is delivered. Mark it received once, with the instructor and date, when the student has had it.",
+    empty: "Pre-flight briefings will appear here once they are on the syllabus.",
+  },
+  ground: {
+    detail: "Sign off a ground topic when it has been covered.",
+    empty: "Ground knowledge topics will appear here once they are on the syllabus.",
+  },
+};
+
+export type SyllabusFocus = "all" | "open" | "done";
+
+export function ProgressTracker({ progress }: { progress: StudentProgress }) {
+  const areas = [
+    { key: "flight", label: "Flight lessons" },
+    { key: "pof", label: "POF lectures" },
+    { key: "briefing", label: "Pre-flight briefings" },
+    { key: "ground", label: "Ground knowledge" },
+  ];
+  return (
+    <section className="rounded-xl border bg-card p-4" aria-label="Training progress">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold">Progress</h2>
+        <p className="text-xs text-muted-foreground">
+          {formatHours(progress.dualHours)} dual · {formatHours(progress.soloHours)} solo
+          {progress.lastActivity ? ` · last ${formatDate(progress.lastActivity)}` : ""}
+        </p>
+      </div>
+      <div className="mt-4 grid gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+        {areas.map((area) => {
+          const stats = categoryStats(progress.items, area.key);
+          return (
+            <div key={area.key}>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm font-medium">{area.label}</p>
+                <p className="text-sm font-semibold tabular-nums">{stats.pct}%</p>
+              </div>
+              <Progress value={stats.pct} className="mt-2" />
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {stats.complete} of {stats.total} complete
+                {area.key === "flight" ? ` · ${progress.flightLearntPct}% learnt · ${progress.flightTaughtPct}% taught` : ""}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+export function StatusPill({ status }: { status: StudentProgress["status"] | ItemProgress["status"] }) {
+  const label = status in STATUS_LABEL ? STATUS_LABEL[status as ItemProgress["status"]] : status;
+  const tone =
+    status === "Complete" || status === "complete"
+      ? STATUS_CLASS.complete
+      : status === "Nearing completion" || status === "taught"
+        ? STATUS_CLASS.taught
+        : status === "In progress" || status === "learnt" || status === "delivered"
+          ? STATUS_CLASS.learnt
+          : STATUS_CLASS.not_started;
+  return (
+    <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-xs font-medium", tone)}>
+      {label}
+    </span>
+  );
+}
+
+export function categoryStats(rows: ItemProgress[], key: string) {
+  const items = rows.filter((row) => row.item.categoryKey === key && row.item.isActive);
+  const complete = items.filter((row) => row.status === "complete").length;
+  const learnt = items.filter((row) => Boolean(row.learnt)).length;
+  const taught = items.filter((row) => Boolean(row.taught)).length;
+  return {
+    total: items.length,
+    complete,
+    learnt,
+    taught,
+    mode: items[0]?.item.signoffMode ?? "single",
+    pct: items.length ? Math.round((complete / items.length) * 100) : 0,
+  };
+}
+
+export function CategoryLinks({
+  categories,
+  current,
+  baseHref,
+  rows,
+  focus = "all",
 }: {
-  learnt: number;
-  taught: number;
-  overall: number;
-  dual: number;
-  solo: number;
+  categories: { key: string; name: string }[];
+  current: string;
+  baseHref: string;
+  rows: ItemProgress[];
+  focus?: SyllabusFocus;
 }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-3">
-      <Meter label="Flight learnt" value={learnt} />
-      <Meter label="Flight taught" value={taught} />
-      <Meter label="Flight complete" value={overall} />
-      <p className="text-sm text-muted-foreground sm:col-span-3">
-        {formatHours(dual)} dual · {formatHours(solo)} solo
-      </p>
+    <div className="-mb-px flex gap-6 overflow-x-auto border-b" role="tablist" aria-label="Syllabus">
+      {categories.map((category) => {
+        const active = category.key === current;
+        const stats = categoryStats(rows, category.key);
+        return (
+          <Link
+            key={category.key}
+            href={categoryHref(baseHref, category.key, focus)}
+            role="tab"
+            aria-selected={active}
+            className={cn(
+              "inline-flex h-10 shrink-0 items-center gap-2 border-b-2 text-sm",
+              active ? "border-primary font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {category.name}
+            <span className={cn("text-xs tabular-nums", active ? "text-foreground/70" : "text-muted-foreground")}>
+              {stats.complete}/{stats.total}
+            </span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
 
-export function Meter({ label, value }: { label: string; value: number }) {
+export function FocusLinks({
+  baseHref,
+  category,
+  focus,
+  openCount,
+  doneCount,
+}: {
+  baseHref: string;
+  category: string;
+  focus: SyllabusFocus;
+  openCount: number;
+  doneCount: number;
+}) {
+  const options: { key: SyllabusFocus; label: string }[] = [
+    { key: "all", label: "All" },
+    { key: "open", label: `To do · ${openCount}` },
+    { key: "done", label: `Done · ${doneCount}` },
+  ];
   return (
-    <div>
-      <div className="mb-1.5 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-        <span>{label}</span>
-        <span className="tabular-nums">{value}%</span>
-      </div>
-      <Progress value={value} />
+    <div className="flex gap-1" role="group" aria-label="Filter this syllabus">
+      {options.map((option) => (
+        <Link
+          key={option.key}
+          href={categoryHref(baseHref, category, option.key)}
+          className={cn(
+            "inline-flex h-8 items-center rounded-md px-2.5 text-xs font-medium",
+            focus === option.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground",
+          )}
+          aria-current={focus === option.key ? "true" : undefined}
+        >
+          {option.label}
+        </Link>
+      ))}
     </div>
   );
+}
+
+export function categoryHelp(key: string) {
+  return CATEGORY_COPY[key]?.detail ?? "Sign off each item as the student completes it.";
+}
+
+export function syllabusEmpty(focus: SyllabusFocus, category: string) {
+  if (focus === "open") return "Everything in this section is signed off.";
+  if (focus === "done") return "Nothing is signed off yet.";
+  return CATEGORY_COPY[category]?.empty ?? "Nothing in this section yet.";
 }
 
 export function SyllabusTable({
@@ -61,6 +210,7 @@ export function SyllabusTable({
   today,
   instructors,
   defaultInstructorId,
+  empty = "Nothing in this view.",
 }: {
   rows: ItemProgress[];
   staff: boolean;
@@ -68,29 +218,68 @@ export function SyllabusTable({
   today: string;
   instructors: { id: string; name: string }[];
   defaultInstructorId: string;
+  empty?: string;
 }) {
   if (rows.length === 0) {
-    return <p className="py-8 text-sm text-muted-foreground">Nothing in this category yet.</p>;
+    return (
+      <p className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+        {empty}
+      </p>
+    );
   }
+
+  const delivery = rows.every((row) => row.item.signoffMode === "delivery");
+  const paired = !delivery && rows.some((row) => row.item.signoffMode === "learnt_taught");
+  const nextLearnId = rows.find((row) => row.item.signoffMode === "learnt_taught" && !row.learnt)?.item.id;
+  const nextTeachId = rows.find((row) => row.item.signoffMode === "learnt_taught" && row.learnt && !row.taught)?.item.id;
+  const nextSingleId = rows.find((row) => row.item.signoffMode === "single" && !row.completed)?.item.id;
+  const nextReceivedId = rows.find((row) => row.item.signoffMode === "delivery" && !row.received)?.item.id;
+
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
-      <table className="w-full text-sm">
-        <thead className="border-b text-left text-[13px] text-foreground/80">
-          <tr>
-            <th className="px-3 py-3 font-semibold">Exercise</th>
-            <th className="px-3 py-3 font-semibold">Learnt</th>
-            <th className="hidden px-3 py-3 font-semibold sm:table-cell">Taught</th>
-            <th className="px-3 py-3 font-semibold">Status</th>
+    <div className="overflow-x-auto rounded-xl border bg-card">
+      <table className={cn("w-full text-sm", delivery ? "min-w-[52rem]" : "min-w-[40rem]")}>
+        <thead>
+          <tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="px-3 py-2 font-medium">Item</th>
+            <th className="px-3 py-2 font-medium">{delivery ? "Received" : paired ? "Learnt" : "Signed off"}</th>
+            {delivery ? <th className="px-3 py-2 font-medium">Delivered</th> : null}
+            {paired ? <th className="px-3 py-2 font-medium">Taught</th> : null}
+            <th className="px-3 py-2 font-medium">Status</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => {
             const single = row.item.signoffMode === "single";
+            const next = row.item.id === nextLearnId || row.item.id === nextTeachId || row.item.id === nextSingleId || row.item.id === nextReceivedId;
             return (
-              <tr key={row.item.id} className="border-b align-top last:border-0">
-                <td className="px-3 py-3 font-medium">{row.item.name}</td>
-                <td className="px-3 py-3">
-                  {single ? (
+              <tr key={row.item.id} className={cn("border-b last:border-0", next && "bg-primary/5")}>
+                <td className="px-3 py-1.5 font-medium">
+                  <span className="inline-flex items-center gap-2">
+                    {row.item.name}
+                    {next ? <span className="text-[11px] font-medium text-primary">Next</span> : null}
+                    {!row.item.isActive ? <span className="text-xs font-normal text-muted-foreground">Retired</span> : null}
+                  </span>
+                </td>
+                <td className="px-3 py-1.5 whitespace-nowrap">
+                  {row.item.signoffMode === "delivery" ? (
+                    <Stamp
+                      stamp={row.received}
+                      staff={staff}
+                      empty={
+                        <SignoffButton
+                          studentId={studentId}
+                          itemId={row.item.id}
+                          itemName={row.item.name}
+                          kind="received"
+                          today={today}
+                          instructors={instructors}
+                          defaultInstructorId={defaultInstructorId}
+                          label="Mark received"
+                          emphasis={row.item.id === nextReceivedId}
+                        />
+                      }
+                    />
+                  ) : single ? (
                     <Stamp
                       stamp={row.completed}
                       staff={staff}
@@ -104,6 +293,7 @@ export function SyllabusTable({
                           instructors={instructors}
                           defaultInstructorId={defaultInstructorId}
                           label="Sign off"
+                          emphasis={row.item.id === nextSingleId}
                         />
                       }
                     />
@@ -121,7 +311,8 @@ export function SyllabusTable({
                             today={today}
                             instructors={instructors}
                             defaultInstructorId={defaultInstructorId}
-                            label="Record"
+                            label="Mark as learnt"
+                            emphasis={row.item.id === nextLearnId}
                           />
                         ) : (
                           "—"
@@ -130,39 +321,34 @@ export function SyllabusTable({
                     />
                   )}
                 </td>
-                <td className="hidden px-3 py-3 sm:table-cell">
-                  {single ? (
-                    "—"
-                  ) : (
-                    <Stamp
-                      stamp={row.taught}
-                      staff={staff}
-                      empty={
-                        staff ? (
-                          <SignoffButton
-                            studentId={studentId}
-                            itemId={row.item.id}
-                            itemName={row.item.name}
-                            kind="taught"
-                            today={today}
-                            instructors={instructors}
-                            defaultInstructorId={defaultInstructorId}
-                            label="Record"
-                          />
-                        ) : (
-                          "—"
-                        )
-                      }
-                    />
-                  )}
-                </td>
-                <td className="px-3 py-3">
-                  <span className={cn("text-sm", row.status === "complete" ? "text-foreground" : "text-muted-foreground")}>
-                    {STATUS_LABEL[row.status]}
-                  </span>
-                  {!single ? (
-                    <div className="mt-1 space-y-1 sm:hidden">
-                      <p className="text-xs text-muted-foreground">Taught</p>
+                {delivery ? (
+                  <td className="px-3 py-1.5">
+                    <div className="flex flex-col items-start gap-1">
+                      {row.deliveries.map((deliveryStamp) => (
+                        <Stamp key={deliveryStamp.eventId} stamp={deliveryStamp} staff={staff} empty={null} />
+                      ))}
+                      {staff ? (
+                        <SignoffButton
+                          studentId={studentId}
+                          itemId={row.item.id}
+                          itemName={row.item.name}
+                          kind="delivered"
+                          today={today}
+                          instructors={instructors}
+                          defaultInstructorId={defaultInstructorId}
+                          label="Record delivery"
+                        />
+                      ) : row.deliveries.length === 0 ? (
+                        <span className="text-muted-foreground">—</span>
+                      ) : null}
+                    </div>
+                  </td>
+                ) : null}
+                {paired ? (
+                  <td className="px-3 py-1.5 whitespace-nowrap">
+                    {single ? (
+                      <span className="text-muted-foreground">—</span>
+                    ) : (
                       <Stamp
                         stamp={row.taught}
                         staff={staff}
@@ -176,15 +362,19 @@ export function SyllabusTable({
                               today={today}
                               instructors={instructors}
                               defaultInstructorId={defaultInstructorId}
-                              label="Record taught"
+                              label="Mark as taught"
+                              emphasis={row.item.id === nextTeachId}
                             />
                           ) : (
                             "—"
                           )
                         }
                       />
-                    </div>
-                  ) : null}
+                    )}
+                  </td>
+                ) : null}
+                <td className="px-3 py-1.5">
+                  <StatusPill status={row.status} />
                 </td>
               </tr>
             );
@@ -206,42 +396,11 @@ function Stamp({
 }) {
   if (!stamp) return staff ? empty : <span className="text-muted-foreground">—</span>;
   return (
-    <div>
-      <p>{formatDate(stamp.date)}</p>
-      <p className="text-xs text-muted-foreground">{stamp.instructorName || "Instructor not recorded"}</p>
+    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
+      <span>{formatDate(stamp.date)}</span>
+      <span className="text-xs text-muted-foreground">{stamp.instructorName || "Instructor not recorded"}</span>
       {staff ? <ClearSignoffButton id={stamp.eventId} /> : null}
-    </div>
-  );
-}
-
-export function ProgressChart({ rows, events }: { rows: ItemProgress[]; events: CcatEvent[] }) {
-  const series = progressSeries(rows, events);
-  const total = rows.filter((row) => row.item.categoryKey === "flight" && row.item.isActive).length;
-  if (series.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sign-offs will draw the progress chart.</p>;
-  }
-  const width = 320;
-  const height = 96;
-  const line = (key: "learnt" | "taught") =>
-    series
-      .map((point, index) => {
-        const x = series.length === 1 ? width / 2 : (index / (series.length - 1)) * width;
-        const y = height - (point[key] / Math.max(total, 1)) * (height - 8) - 4;
-        return `${x},${y}`;
-      })
-      .join(" ");
-  return (
-    <figure>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-28 w-full" role="img" aria-label="Flight exercises learnt and taught over time">
-        <polyline fill="none" stroke="currentColor" strokeWidth="2" points={line("learnt")} className="text-primary" />
-        <polyline fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" points={line("taught")} className="text-muted-foreground" />
-      </svg>
-      <figcaption className="mt-2 flex gap-4 text-xs text-muted-foreground">
-        <span>Solid · learnt</span>
-        <span>Dashed · taught</span>
-        <span>{total} flight exercises</span>
-      </figcaption>
-    </figure>
+    </span>
   );
 }
 
@@ -255,37 +414,74 @@ export function FlightHistory({
   context: FlightFormContext | null;
 }) {
   if (flights.length === 0) {
-    return <p className="text-sm text-muted-foreground">No flights recorded.</p>;
+    return (
+      <p className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
+        No flights recorded yet. Log a flight to attach the lessons learnt and taught on it.
+      </p>
+    );
   }
   return (
-    <ul className="divide-y rounded-xl border bg-card">
-      {flights.map((flight) => (
-        <li key={flight.id} className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-medium">
-              {formatDate(flight.flownOn)}
-              {flight.aircraftRegistration ? ` · ${flight.aircraftRegistration}` : ""}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {flight.instructorName || "Instructor not recorded"} · {formatHours(flight.dualHours)} dual · {formatHours(flight.soloHours)} solo
-            </p>
-            <p className="mt-1 text-sm">
-              Taught: {flight.taught.join(", ") || "—"}
-            </p>
-            <p className="text-sm">
-              Learnt: {flight.learnt.join(", ") || "—"}
-            </p>
-            {flight.notes ? <p className="mt-1 text-sm text-muted-foreground">{flight.notes}</p> : null}
-          </div>
-          {staff && context ? (
-            <div className="flex gap-2">
-              <EditFlightButton context={context} flight={flight} />
-              <RemoveFlightButton id={flight.id} />
-            </div>
-          ) : null}
-        </li>
+    <div className="overflow-x-auto rounded-xl border bg-card">
+      <table className="w-full min-w-[44rem] text-sm">
+        <thead>
+          <tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="px-3 py-2 font-medium">Date</th>
+            <th className="px-3 py-2 font-medium">Aircraft</th>
+            <th className="px-3 py-2 font-medium">Instructor</th>
+            <th className="px-3 py-2 font-medium">Time</th>
+            <th className="px-3 py-2 font-medium">Learnt</th>
+            <th className="px-3 py-2 font-medium">Taught</th>
+            {staff && context ? <th className="px-3 py-2 font-medium"><span className="sr-only">Actions</span></th> : null}
+          </tr>
+        </thead>
+        <tbody>
+          {flights.map((flight) => (
+            <tr key={flight.id} className="border-b align-top last:border-0">
+              <td className="px-3 py-1.5 whitespace-nowrap font-medium">{formatDate(flight.flownOn)}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap">{flight.aircraftRegistration || "—"}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap">{flight.instructorName || "—"}</td>
+              <td className="px-3 py-1.5 whitespace-nowrap text-muted-foreground">
+                {formatHours(flight.dualHours)} dual · {formatHours(flight.soloHours)} solo
+              </td>
+              <td className="max-w-40 truncate px-3 py-1.5 text-muted-foreground" title={flight.learnt.join(", ")}>
+                {flight.learnt.join(", ") || "—"}
+              </td>
+              <td className="max-w-40 truncate px-3 py-1.5 text-muted-foreground" title={flight.taught.join(", ")}>
+                {flight.taught.join(", ") || "—"}
+              </td>
+              {staff && context ? (
+                <td className="px-3 py-1.5 whitespace-nowrap">
+                  <div className="flex gap-1">
+                    <EditFlightButton context={context} flight={flight} />
+                    <RemoveFlightButton id={flight.id} />
+                  </div>
+                </td>
+              ) : null}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+export function ExerciseChips({ learnt, taught }: { learnt: string[]; taught: string[] }) {
+  if (learnt.length === 0 && taught.length === 0) {
+    return <p className="mt-3 text-sm text-muted-foreground">No exercises recorded on this flight.</p>;
+  }
+  return (
+    <div className="mt-3 flex flex-wrap gap-1.5">
+      {taught.map((name) => (
+        <span key={`taught-${name}`} className="rounded-full bg-warning-muted px-2 py-0.5 text-xs text-warning-foreground">
+          Taught · {name}
+        </span>
       ))}
-    </ul>
+      {learnt.map((name) => (
+        <span key={`learnt-${name}`} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+          Learnt · {name}
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -295,45 +491,14 @@ export function AuditList({ audits }: { audits: CcatAudit[] }) {
     <section className="flex flex-col gap-3">
       <h2 className="text-base font-semibold">Recent changes</h2>
       <ul className="divide-y rounded-xl border bg-card">
-        {audits.map((audit) => (
-          <li key={audit.id} className="px-3 py-3 text-sm">
+        {audits.slice(0, 8).map((audit) => (
+          <li key={audit.id} className="px-4 py-3 text-sm">
             <span className="font-medium capitalize">{audit.action}</span>
             <span className="text-muted-foreground"> {audit.entity} · {formatDate(audit.createdAt)}</span>
           </li>
         ))}
       </ul>
     </section>
-  );
-}
-
-export function CategoryLinks({
-  categories,
-  current,
-  baseHref,
-}: {
-  categories: { key: string; name: string }[];
-  current: string;
-  baseHref: string;
-}) {
-  return (
-    <div className="flex gap-1 overflow-x-auto" role="tablist" aria-label="Syllabus categories">
-      {categories.map((category) => {
-        const active = category.key === current;
-        return (
-          <Link
-            key={category.key}
-            href={`${baseHref}?category=${category.key}`}
-            className={cn(
-              "inline-flex h-9 shrink-0 items-center rounded-md px-3 text-sm",
-              active ? "bg-muted font-medium" : "text-muted-foreground",
-            )}
-            aria-current={active ? "page" : undefined}
-          >
-            {category.name}
-          </Link>
-        );
-      })}
-    </div>
   );
 }
 
@@ -350,4 +515,15 @@ export function categoryList(items: CcatItem[]) {
     }
   }
   return [...seen.values()].sort((a, b) => a.sort - b.sort);
+}
+
+export function categoryHref(baseHref: string, category: string, focus: SyllabusFocus = "all") {
+  const params = new URLSearchParams({ category });
+  if (focus !== "all") params.set("focus", focus);
+  return `${baseHref}?${params.toString()}`;
+}
+
+export function parseFocus(value: string | undefined): SyllabusFocus {
+  if (value === "open" || value === "done") return value;
+  return "all";
 }

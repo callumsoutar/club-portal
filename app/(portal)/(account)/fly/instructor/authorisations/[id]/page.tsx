@@ -29,7 +29,8 @@ import {
   ReviewStatusBadge,
   ReviewStatusProvider,
 } from "@/components/flight/approval/decision-bar";
-import { requireAdmin } from "@/lib/flight/auth";
+import { requirePermission } from "@/lib/flight/auth";
+import { hasPermission } from "@/lib/flight/permissions";
 import { LICENCE_SHORT } from "@/lib/flight/constants";
 import { reviewQuantityIssues, type FlightFigures } from "@/lib/flight/endurance";
 import {
@@ -66,7 +67,7 @@ export default async function ApprovalPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const user = await requireAdmin();
+  const user = await requirePermission("authorisations.review");
   const { id } = await params;
 
   const authorisation = await getAuthorisation(id);
@@ -119,8 +120,10 @@ export default async function ApprovalPage({
     medical.state !== "expired";
   const isActionable = ["submitted", "pending"].includes(authorisation.status);
   const canArchive =
-    user.profile.role === "admin" &&
-    ["submitted", "pending", "approved"].includes(authorisation.status);
+    hasPermission(
+      { flightRole: user.profile.role, safetyAdmin: false },
+      "authorisations.archive",
+    ) && ["submitted", "pending", "approved"].includes(authorisation.status);
 
   const registration =
     authorisation.aircraft?.registration ??
@@ -362,7 +365,7 @@ export default async function ApprovalPage({
                 <CommentBox
                   authorisationId={authorisation.id}
                   comments={comments}
-                  canPostInternal={user.profile.role === "admin"}
+                  canPostInternal
                   plain
                 />
               </Panel>

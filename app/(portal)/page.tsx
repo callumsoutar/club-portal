@@ -33,13 +33,17 @@ const NEW_ARTICLE_DAYS = 14;
 export default async function PortalHomePage() {
   const viewer = await getPortalViewer();
   const { session, role, company } = viewer;
-  const isAdmin = role === "admin";
+  const reviewNav = APP_NAV.find((item) => item.href === "/fly/instructor")!;
+  const canReview = canAccessNav(reviewNav, {
+    role,
+    safetyAdmin: viewer.safetyAdmin,
+  });
   const isMember = session !== null && role !== null;
 
   const [messages, myAuthorisations, reviewQueue] = await Promise.all([
     getPublishedSafetyMessages(),
     isMember ? getMyAuthorisations(session.id) : Promise.resolve([]),
-    isAdmin
+    canReview
       ? getAuthorisationQueue({ status: ACTIONABLE_STATUSES, limit: REVIEW_LIMIT })
       : Promise.resolve(null),
   ]);
@@ -70,7 +74,6 @@ export default async function PortalHomePage() {
   // Guests already have the latest articles on this page, so they only see
   // flight authorisation.
   const flightsNav = APP_NAV.find((item) => item.href === "/fly")!;
-  const reviewNav = APP_NAV.find((item) => item.href === "/fly/instructor")!;
   const secondaryAction: HeroAction | undefined = reviewQueue
     ? {
         href: reviewNav.href,

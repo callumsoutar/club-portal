@@ -10,8 +10,6 @@ import { createServerSupabase } from "@/lib/flight/supabase/server";
 export interface CcatActionResult {
   ok: boolean;
   error?: string;
-  inserted?: number;
-  skipped?: number;
 }
 
 const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Enter a valid date.");
@@ -37,9 +35,7 @@ async function requireAdmin() {
 function refresh(studentId?: string) {
   revalidatePath("/training");
   revalidatePath("/training/flights");
-  revalidatePath("/training/planner");
   revalidatePath("/training/syllabus");
-  revalidatePath("/training/import");
   revalidatePath("/training/me");
   if (studentId) revalidatePath(`/training/students/${studentId}`);
 }
@@ -48,6 +44,10 @@ function failure(error: { message?: string } | null, fallback: string): string {
   const message = error?.message ?? "";
   if (message.includes("syllabus item") || message.includes("Flight does not belong")) return message;
   if (message.includes("ccat_events_import_key")) return "That record was already imported.";
+  if (message.includes("already been signed off") || message.includes("ccat_events_received_once")) {
+    return "This briefing has already been signed off as received.";
+  }
+  if (message.includes("signing this off")) return "Enter the instructor who is signing this off.";
   return fallback;
 }
 
@@ -228,9 +228,10 @@ export async function voidFlight(id: string): Promise<CcatActionResult> {
 const signoffSchema = z.object({
   studentId: z.string().uuid(),
   itemId: z.string().uuid(),
-  kind: z.enum(["learnt", "taught", "completed"]),
+  kind: z.enum(["learnt", "taught", "completed", "delivered", "received"]),
   eventDate: dateKey,
   instructorId: z.string().uuid().optional().or(z.literal("")),
+  instructorName: z.string().trim().max(120).optional().or(z.literal("")),
   notes: optionalText,
 });
 
@@ -241,13 +242,18 @@ export async function recordSignoff(input: unknown): Promise<CcatActionResult> {
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the sign-off." };
   const supabase = await createServerSupabase();
   const instructor = await instructorStamp(supabase, parsed.data.instructorId || null, actor.profile.full_name);
+  const delivery = parsed.data.kind === "delivered" || parsed.data.kind === "received";
+  const instructorName = delivery ? parsed.data.instructorName || instructor.name : instructor.name;
+  if (delivery && !instructorName?.trim()) {
+    return { ok: false, error: "Enter the instructor who is signing this off." };
+  }
   const { error } = await supabase.from("ccat_events").insert({
     student_id: parsed.data.studentId,
     item_id: parsed.data.itemId,
     kind: parsed.data.kind,
     event_date: parsed.data.eventDate,
     instructor_id: instructor.id,
-    instructor_name: instructor.name,
+    instructor_name: instructorName,
     notes: parsed.data.notes,
     source: "manual",
     created_by: actor.id,
@@ -260,6 +266,50 @@ export async function recordSignoff(input: unknown): Promise<CcatActionResult> {
     date: parsed.data.eventDate,
   });
   refresh(parsed.data.studentId);
+  return { ok: true };
+}
+
+export async function updateSignoff(input: unknown): Promise<CcatActionResult> {
+  const actor = await requireInstructor();
+  if (!actor) return denied();
+  const parsed = signoffSchema
+    .pick({ eventDate: true, instructorId: true, instructorName: true, notes: true })
+    .extend({ id: z.string().uuid() })
+    .safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the sign-off." };
+  const supabase = await createServerSupabase();
+  const { data: current, error: lookupError } = await supabase
+    .from("ccat_events")
+    .select("id, student_id, kind, voided_at")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+  if (lookupError || !current) return { ok: false, error: "That sign-off could not be found." };
+  const row = current as { id: string; student_id: string; kind: EventKind; voided_at: string | null };
+  if (row.voided_at) return { ok: false, error: "That sign-off has been removed." };
+  const instructor = await instructorStamp(supabase, parsed.data.instructorId || null, actor.profile.full_name);
+  const delivery = row.kind === "delivered" || row.kind === "received";
+  const instructorName = delivery ? parsed.data.instructorName || instructor.name : instructor.name;
+  if (delivery && !instructorName?.trim()) {
+    return { ok: false, error: "Enter the instructor who is signing this off." };
+  }
+  const { error } = await supabase
+    .from("ccat_events")
+    .update({
+      event_date: parsed.data.eventDate,
+      instructor_id: instructor.id,
+      instructor_name: instructorName,
+      notes: parsed.data.notes,
+      updated_by: actor.id,
+    })
+    .eq("id", row.id)
+    .is("voided_at", null);
+  if (error) return { ok: false, error: failure(error, "Could not update the sign-off.") };
+  await writeAudit(supabase, actor.id, "edit", "event", row.id, {
+    studentId: row.student_id,
+    kind: row.kind,
+    date: parsed.data.eventDate,
+  });
+  refresh(row.student_id);
   return { ok: true };
 }
 
@@ -359,7 +409,7 @@ const itemSchema = z.object({
   id: z.string().uuid().optional(),
   categoryId: z.string().uuid(),
   name: z.string().trim().min(1, "Name is required.").max(160),
-  signoffMode: z.enum(["learnt_taught", "single"]).optional().or(z.literal("")),
+  signoffMode: z.enum(["learnt_taught", "single", "delivery"]).optional().or(z.literal("")),
   isActive: z.boolean(),
 });
 
@@ -470,189 +520,6 @@ export async function deleteSyllabusItem(id: string): Promise<CcatActionResult> 
   await writeAudit(supabase, actor.id, "delete", "item", parsed.data, {});
   refresh();
   return { ok: true };
-}
-
-const planSchema = z.object({
-  weekStart: dateKey,
-  plans: z.array(z.object({
-    studentId: z.string().uuid(),
-    instructorId: z.string().uuid().optional().or(z.literal("")),
-    aircraftRegistration: z.string().trim().max(20).optional().transform((value) => value || null),
-    notes: optionalText,
-    learntItemIds: z.array(z.string().uuid()).max(28),
-    taughtItemIds: z.array(z.string().uuid()).max(28),
-  })).max(80),
-});
-
-export async function saveWeekPlan(input: unknown): Promise<CcatActionResult> {
-  const actor = await requireInstructor();
-  if (!actor) return denied();
-  const parsed = planSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the weekly plan." };
-  const [year, month, day] = parsed.data.weekStart.split("-").map(Number);
-  const week = new Date(Date.UTC(year, month - 1, day));
-  if (week.getUTCDay() !== 1) return { ok: false, error: "Choose a week starting on Monday." };
-
-  const supabase = await createServerSupabase();
-  const { error: deleteError } = await supabase.from("ccat_plans").delete().eq("week_start", parsed.data.weekStart);
-  if (deleteError) return { ok: false, error: "Could not update the weekly plan." };
-
-  for (const plan of parsed.data.plans) {
-    const { data, error } = await supabase
-      .from("ccat_plans")
-      .insert({
-        week_start: parsed.data.weekStart,
-        student_id: plan.studentId,
-        instructor_id: plan.instructorId || null,
-        aircraft_registration: plan.aircraftRegistration,
-        notes: plan.notes,
-        created_by: actor.id,
-      })
-      .select("id")
-      .single();
-    if (error || !data) return { ok: false, error: "Could not save the weekly plan." };
-    const planId = (data as { id: string }).id;
-    const items = [
-      ...plan.taughtItemIds.map((itemId) => ({ plan_id: planId, item_id: itemId, kind: "taught" })),
-      ...plan.learntItemIds.map((itemId) => ({ plan_id: planId, item_id: itemId, kind: "learnt" })),
-    ];
-    if (items.length > 0) {
-      const { error: itemError } = await supabase.from("ccat_plan_items").insert(items);
-      if (itemError) return { ok: false, error: "Could not save the planned exercises." };
-    }
-  }
-  await writeAudit(supabase, actor.id, "save", "plan", null, {
-    weekStart: parsed.data.weekStart,
-    students: parsed.data.plans.length,
-  });
-  refresh();
-  return { ok: true };
-}
-
-const importSchema = z.object({
-  records: z.array(z.discriminatedUnion("type", [
-    z.object({
-      type: z.literal("flight"),
-      importKey: z.string().min(8).max(300),
-      studentId: z.string().uuid(),
-      instructorId: z.string().uuid().nullable(),
-      instructorName: z.string().trim().max(120).nullable(),
-      date: dateKey,
-      registration: z.string().trim().max(20).nullable(),
-      dualHours: hours,
-      soloHours: hours,
-      notes: z.string().trim().max(4000).nullable(),
-      learntItemIds: z.array(z.string().uuid()).max(28),
-      taughtItemIds: z.array(z.string().uuid()).max(28),
-    }),
-    z.object({
-      type: z.literal("signoff"),
-      importKey: z.string().min(8).max(300),
-      studentId: z.string().uuid(),
-      instructorId: z.string().uuid().nullable(),
-      instructorName: z.string().trim().max(120).nullable(),
-      itemId: z.string().uuid(),
-      kind: z.enum(["learnt", "taught", "completed"]),
-      date: dateKey,
-      notes: z.string().trim().max(4000).nullable(),
-    }),
-  ])).max(500),
-});
-
-export async function confirmImport(input: unknown): Promise<CcatActionResult> {
-  const actor = await requireAdmin();
-  if (!actor) return denied();
-  const parsed = importSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the import." };
-  if (parsed.data.records.length === 0) return { ok: false, error: "Nothing is ready to import." };
-
-  const supabase = await createServerSupabase();
-  const keys = parsed.data.records.map((record) => record.importKey);
-  const { data: existing } = await supabase.from("ccat_events").select("import_key").in("import_key", keys);
-  const seen = new Set(((existing ?? []) as { import_key: string | null }[]).map((row) => row.import_key).filter(Boolean));
-  let inserted = 0;
-  let skipped = 0;
-
-  for (const record of parsed.data.records) {
-    if (seen.has(record.importKey)) {
-      skipped += 1;
-      continue;
-    }
-    if (record.type === "signoff") {
-      const { error } = await supabase.from("ccat_events").insert({
-        student_id: record.studentId,
-        item_id: record.itemId,
-        kind: record.kind,
-        event_date: record.date,
-        instructor_id: record.instructorId,
-        instructor_name: record.instructorName,
-        notes: record.notes,
-        source: "import",
-        import_key: record.importKey,
-        created_by: actor.id,
-        updated_by: actor.id,
-      });
-      if (error) {
-        if (error.message.includes("ccat_events_import_key")) {
-          skipped += 1;
-          continue;
-        }
-        return { ok: false, error: failure(error, "Import stopped before every row was saved."), inserted, skipped };
-      }
-      seen.add(record.importKey);
-      inserted += 1;
-      continue;
-    }
-
-    if (record.learntItemIds.length + record.taughtItemIds.length === 0) {
-      skipped += 1;
-      continue;
-    }
-    const { data: flight, error: flightError } = await supabase
-      .from("ccat_flights")
-      .insert({
-        student_id: record.studentId,
-        flown_on: record.date,
-        aircraft_registration: record.registration,
-        instructor_id: record.instructorId,
-        instructor_name: record.instructorName,
-        dual_hours: record.dualHours,
-        solo_hours: record.soloHours,
-        notes: record.notes,
-        created_by: actor.id,
-        updated_by: actor.id,
-      })
-      .select("id")
-      .single();
-    if (flightError || !flight) return { ok: false, error: "Import stopped while saving a flight.", inserted, skipped };
-    const flightId = (flight as { id: string }).id;
-    const events = [
-      ...record.taughtItemIds.map((itemId, index) => ({ itemId, kind: "taught" as const, index })),
-      ...record.learntItemIds.map((itemId, index) => ({ itemId, kind: "learnt" as const, index })),
-    ];
-    const { error: eventError } = await supabase.from("ccat_events").insert(
-      events.map((event) => ({
-        student_id: record.studentId,
-        item_id: event.itemId,
-        flight_id: flightId,
-        kind: event.kind,
-        event_date: record.date,
-        instructor_id: record.instructorId,
-        instructor_name: record.instructorName,
-        source: "import",
-        import_key: events.length === 1 ? record.importKey : `${record.importKey}:${event.kind}:${event.itemId}`,
-        created_by: actor.id,
-        updated_by: actor.id,
-      })),
-    );
-    if (eventError) return { ok: false, error: failure(eventError, "Import stopped while saving exercises."), inserted, skipped };
-    seen.add(record.importKey);
-    inserted += 1;
-  }
-
-  await writeAudit(supabase, actor.id, "import", "import", null, { inserted, skipped });
-  refresh();
-  return { ok: true, inserted, skipped };
 }
 
 async function instructorStamp(

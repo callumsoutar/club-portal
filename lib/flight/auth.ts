@@ -3,6 +3,8 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
+import { getAdminUser } from "@/lib/auth";
+import { hasPermission, type Permission } from "@/lib/flight/permissions";
 import { createServerSupabase } from "@/lib/flight/supabase/server";
 import type { AppRole, PilotProfile, Profile } from "@/lib/flight/types";
 
@@ -90,4 +92,29 @@ export async function requireStaff(): Promise<SessionUser> {
 
 export async function requireAdmin(): Promise<SessionUser> {
   return requireRole("admin");
+}
+
+/** Fresh role lookup. Safety admin is loaded from `user_roles`, not the JWT. */
+export async function userHasPermission(permission: Permission): Promise<boolean> {
+  const user = await getSessionUser();
+  if (!user) return false;
+  const safetyAdmin = Boolean(await getAdminUser());
+  return hasPermission(
+    { flightRole: user.profile.role, safetyAdmin },
+    permission,
+  );
+}
+
+/**
+ * Page gate. Redirects to login when signed out, and to /fly when the signed-in
+ * user lacks the permission. Server actions should use {@link userHasPermission}
+ * and return an error instead of redirecting.
+ */
+export async function requirePermission(permission: Permission): Promise<SessionUser> {
+  const user = await requireUser();
+  const safetyAdmin = Boolean(await getAdminUser());
+  if (!hasPermission({ flightRole: user.profile.role, safetyAdmin }, permission)) {
+    redirect("/fly");
+  }
+  return user;
 }

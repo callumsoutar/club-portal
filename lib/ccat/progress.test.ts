@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import test from "node:test";
+import { it } from "vitest";
 
 import { studentProgress } from "@/lib/ccat/progress";
 import type { CcatEvent, CcatItem, CcatStudent } from "@/lib/ccat/types";
@@ -44,7 +44,7 @@ function event(partial: Partial<CcatEvent> & Pick<CcatEvent, "id" | "itemId" | "
   };
 }
 
-test("learnt and taught stay independent and out of order does not complete earlier exercises", () => {
+it("learnt and taught stay independent and out of order does not complete earlier exercises", () => {
   const progress = studentProgress(
     student,
     items,
@@ -69,7 +69,7 @@ test("learnt and taught stay independent and out of order does not complete earl
   assert.equal(progress.nextTeach, "Wingdrop Stalls");
 });
 
-test("a later learnt sign-off does not replace the original date", () => {
+it("a later learnt sign-off does not replace the original date", () => {
   const progress = studentProgress(
     student,
     [items[0]],
@@ -81,4 +81,32 @@ test("a later learnt sign-off does not replace the original date", () => {
   );
   assert.equal(progress.items[0]?.learnt?.date, "2026-10-12");
   assert.equal(progress.items[0]?.learnt?.instructorName, "First");
+});
+
+it("a briefing can be delivered more than once and received only counts once", () => {
+  const lecture: CcatItem = {
+    ...item("lift", "Lift Formula", 4),
+    categoryKey: "pof",
+    categoryName: "POF Lectures",
+    signoffMode: "delivery",
+  };
+  const progress = studentProgress(
+    student,
+    [lecture],
+    [
+      event({ id: "d2", itemId: "lift", kind: "delivered", eventDate: "2026-11-02", instructorName: "Second" }),
+      event({ id: "d1", itemId: "lift", kind: "delivered", eventDate: "2026-10-12", instructorName: "First" }),
+      event({ id: "r1", itemId: "lift", kind: "received", eventDate: "2026-11-08", instructorName: "First" }),
+    ],
+    [],
+  );
+  const row = progress.items[0];
+  assert.equal(row?.status, "complete");
+  assert.equal(row?.received?.date, "2026-11-08");
+  assert.equal(row?.received?.instructorName, "First");
+  assert.deepEqual(
+    row?.deliveries.map((delivery) => delivery.date),
+    ["2026-10-12", "2026-11-02"],
+  );
+  assert.equal(progress.pofPct, 100);
 });

@@ -10,6 +10,7 @@ import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/flight/ui/button";
+import { resolvePostAuthDestination } from "@/app/login/actions";
 import {
   resendSignupCode,
   sendSignupCode,
@@ -26,7 +27,6 @@ import {
 import { Input } from "@/components/flight/ui/input";
 import { createClient } from "@/lib/flight/supabase/client";
 import { cn } from "@/lib/flight/utils";
-import type { AppRole } from "@/lib/flight/types";
 
 const schema = z.object({
   first_name: z.string().trim().max(60).optional(),
@@ -74,44 +74,21 @@ export function AuthForm({
     ),
   });
 
-  function nextPath() {
-    const requested = searchParams.get("next");
-    return requested?.startsWith("/") &&
-      !requested.startsWith("//") &&
-      !requested.includes("\\")
-      ? requested
-      : "/";
-  }
-
-  async function continueSignedIn(
-    supabase: ReturnType<typeof createClient>,
-    userId: string | undefined,
-  ) {
+  async function continueSignedIn(userId: string | undefined) {
     if (!userId) {
       setPending(false);
       toast.error("Couldn't verify your account. Try again.");
       return;
     }
 
-    if (!memberLoginEnabled) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", userId)
-        .maybeSingle();
-
-      const role = (profile?.role ?? "member") as AppRole;
-      if (role === "member") {
-        await supabase.auth.signOut();
-        setPending(false);
-        toast.error(
-          "Member login is turned off. Use guest authorisation, or sign in with a staff account.",
-        );
-        return;
-      }
+    const result = await resolvePostAuthDestination(searchParams.get("next"));
+    setPending(false);
+    if ("error" in result) {
+      toast.error(result.error);
+      return;
     }
 
-    router.push(nextPath());
+    router.push(result.destination);
     router.refresh();
   }
 
@@ -181,7 +158,7 @@ export function AuthForm({
       return;
     }
 
-    await continueSignedIn(supabase, data.user?.id);
+    await continueSignedIn(data.user?.id);
   }
 
   async function onConfirm(event: React.FormEvent) {
@@ -208,7 +185,7 @@ export function AuthForm({
       return;
     }
 
-    await continueSignedIn(supabase, data.user?.id);
+    await continueSignedIn(data.user?.id);
   }
 
   async function onResend() {

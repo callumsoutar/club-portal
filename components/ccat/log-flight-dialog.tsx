@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/flight/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -43,13 +44,21 @@ export interface FlightDraft {
 
 export function LogFlightButton({ context }: { context: FlightFormContext }) {
   const [open, setOpen] = useState(false);
+  const [session, setSession] = useState(0);
   return (
     <>
-      <Button size="sm" onClick={() => setOpen(true)} className="h-9 gap-1.5 px-3">
+      <Button
+        size="sm"
+        onClick={() => {
+          setSession((value) => value + 1);
+          setOpen(true);
+        }}
+        className="h-9 gap-1.5 px-3"
+      >
         <Plus className="size-4" />
         Log a flight
       </Button>
-      <FlightDialog open={open} onOpenChange={setOpen} context={context} />
+      <FlightDialog key={session} open={open} onOpenChange={setOpen} context={context} />
     </>
   );
 }
@@ -62,12 +71,20 @@ export function EditFlightButton({
   flight: FlightDraft;
 }) {
   const [open, setOpen] = useState(false);
+  const [session, setSession] = useState(0);
   return (
     <>
-      <Button size="sm" variant="outline" onClick={() => setOpen(true)}>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => {
+          setSession((value) => value + 1);
+          setOpen(true);
+        }}
+      >
         Edit
       </Button>
-      <FlightDialog open={open} onOpenChange={setOpen} context={context} flight={flight} />
+      <FlightDialog key={session} open={open} onOpenChange={setOpen} context={context} flight={flight} />
     </>
   );
 }
@@ -152,120 +169,136 @@ function FlightDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[min(92vh,48rem)] flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="border-b px-5 py-4 pr-12">
           <DialogTitle>{flight ? "Edit flight" : "Log a flight"}</DialogTitle>
+          <DialogDescription>
+            Record who flew, then tick the lessons learnt on this sortie and the ones taught back.
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-5 py-4">
+            <fieldset className="space-y-4">
+              <legend className="text-sm font-semibold">Flight</legend>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Student</Label>
+                  <Select
+                    value={studentId}
+                    onValueChange={(value) => {
+                      setStudentId(value);
+                      if (!flight) {
+                        setLearnt([]);
+                        setTaught([]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a student" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {context.students.map((student) => (
+                        <SelectItem key={student.id} value={student.id}>
+                          {student.intake ? `${student.name} · ${student.intake}` : student.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="flown-on">Date</Label>
+                  <Input id="flown-on" type="date" value={flownOn} onChange={(event) => setFlownOn(event.target.value)} required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Aircraft</Label>
+                  <Select value={aircraftId || "other"} onValueChange={(value) => setAircraftId(value === "other" ? "" : value)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Registration" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {context.aircraft.map((aircraft) => (
+                        <SelectItem key={aircraft.id} value={aircraft.id}>
+                          {aircraft.registration}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value="other">Other registration</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Instructor</Label>
+                  <Select value={instructorId || "none"} onValueChange={(value) => setInstructorId(value === "none" ? "" : value)}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Instructor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Not listed</SelectItem>
+                      {context.instructors.map((instructor) => (
+                        <SelectItem key={instructor.id} value={instructor.id}>
+                          {instructor.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dual-hours">Dual hours</Label>
+                  <Input id="dual-hours" inputMode="decimal" value={dualHours} onChange={(event) => setDualHours(event.target.value)} placeholder="1.2" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="solo-hours">Solo hours</Label>
+                  <Input id="solo-hours" inputMode="decimal" value={soloHours} onChange={(event) => setSoloHours(event.target.value)} placeholder="0.0" />
+                </div>
+              </div>
+              {!aircraftId ? (
+                <div className="space-y-2 sm:max-w-xs">
+                  <Label htmlFor="registration">Registration</Label>
+                  <Input
+                    id="registration"
+                    value={registration}
+                    onChange={(event) => setRegistration(event.target.value.toUpperCase())}
+                    placeholder="ZK-ABC"
+                    className="uppercase"
+                  />
+                </div>
+              ) : null}
+            </fieldset>
+
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-semibold">Lessons on this flight</legend>
+              <p className="text-sm text-muted-foreground">
+                Suggested lessons are the ones this student is ready for. Tick taught when they demonstrated it, and learnt when you taught it to them.
+              </p>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ExercisePicker
+                  label="Taught"
+                  hint="Demonstrated by the student."
+                  items={orderItems(context.items, suggested.teach)}
+                  suggested={new Set(suggested.teach)}
+                  selected={taught}
+                  onToggle={(id) => setTaught((current) => toggle(current, id))}
+                />
+                <ExercisePicker
+                  label="Learnt"
+                  hint="Shown to the student."
+                  items={orderItems(context.items, suggested.learn)}
+                  suggested={new Set(suggested.learn)}
+                  selected={learnt}
+                  onToggle={(id) => setLearnt((current) => toggle(current, id))}
+                />
+              </div>
+            </fieldset>
+
             <div className="space-y-2">
-              <Label>Student</Label>
-              <Select
-                value={studentId}
-                onValueChange={(value) => {
-                  setStudentId(value);
-                  if (!flight) {
-                    setLearnt([]);
-                    setTaught([]);
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose a student" />
-                </SelectTrigger>
-                <SelectContent>
-                  {context.students.map((student) => (
-                    <SelectItem key={student.id} value={student.id}>
-                      {student.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="flown-on">Date</Label>
-              <Input id="flown-on" type="date" value={flownOn} onChange={(event) => setFlownOn(event.target.value)} required />
-            </div>
-            <div className="space-y-2">
-              <Label>Aircraft</Label>
-              <Select value={aircraftId || "other"} onValueChange={(value) => setAircraftId(value === "other" ? "" : value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Registration" />
-                </SelectTrigger>
-                <SelectContent>
-                  {context.aircraft.map((aircraft) => (
-                    <SelectItem key={aircraft.id} value={aircraft.id}>
-                      {aircraft.registration}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="other">Other registration</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Instructor</Label>
-              <Select value={instructorId || "none"} onValueChange={(value) => setInstructorId(value === "none" ? "" : value)}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Instructor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not listed</SelectItem>
-                  {context.instructors.map((instructor) => (
-                    <SelectItem key={instructor.id} value={instructor.id}>
-                      {instructor.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="flight-notes">Notes</Label>
+              <Textarea id="flight-notes" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Optional. Weather, handling notes, what to cover next." />
             </div>
           </div>
-          {!aircraftId ? (
-            <div className="space-y-2">
-              <Label htmlFor="registration">Registration</Label>
-              <Input
-                id="registration"
-                value={registration}
-                onChange={(event) => setRegistration(event.target.value.toUpperCase())}
-                placeholder="ZK-ABC"
-                className="uppercase"
-              />
-            </div>
-          ) : null}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="dual-hours">Dual hours</Label>
-              <Input id="dual-hours" inputMode="decimal" value={dualHours} onChange={(event) => setDualHours(event.target.value)} placeholder="0.0" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="solo-hours">Solo hours</Label>
-              <Input id="solo-hours" inputMode="decimal" value={soloHours} onChange={(event) => setSoloHours(event.target.value)} placeholder="0.0" />
-            </div>
-          </div>
-          <ExercisePicker
-            label="Taught"
-            hint="Exercises the student demonstrated. Suggested ones are learnt and not yet taught."
-            items={orderItems(context.items, suggested.teach)}
-            suggested={new Set(suggested.teach)}
-            selected={taught}
-            onToggle={(id) => setTaught((current) => toggle(current, id))}
-          />
-          <ExercisePicker
-            label="Learnt"
-            hint="Exercises the student was taught. Suggested ones are not learnt yet."
-            items={orderItems(context.items, suggested.learn)}
-            suggested={new Set(suggested.learn)}
-            selected={learnt}
-            onToggle={(id) => setLearnt((current) => toggle(current, id))}
-          />
-          <div className="space-y-2">
-            <Label htmlFor="flight-notes">Notes</Label>
-            <Textarea id="flight-notes" value={notes} onChange={(event) => setNotes(event.target.value)} />
-          </div>
-          <DialogFooter>
+          <DialogFooter className="mx-0 mb-0 rounded-none">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" disabled={pending || !studentId}>
               {pending ? <Loader2 className="size-4 animate-spin" /> : null}
               Save flight
             </Button>
@@ -297,28 +330,53 @@ function ExercisePicker({
     return items.filter((item) => !term || item.name.toLowerCase().includes(term));
   }, [items, query]);
 
+  const pinned = visible.filter((item) => suggested.has(item.id));
+  const rest = visible.filter((item) => !suggested.has(item.id));
+
   return (
-    <div className="space-y-2">
-      <div>
-        <Label>{label}</Label>
-        <p className="text-xs text-muted-foreground">{hint}</p>
+    <div className="flex flex-col gap-2 rounded-xl border p-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <div>
+          <p className="text-sm font-medium">{label}</p>
+          <p className="text-xs text-muted-foreground">{hint}</p>
+        </div>
+        <p className="text-xs text-muted-foreground tabular-nums">{selected.length} selected</p>
       </div>
-      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the flight syllabus" />
-      <div className="max-h-44 overflow-y-auto rounded-lg border">
-        {visible.length === 0 ? (
-          <p className="px-3 py-4 text-sm text-muted-foreground">No exercises match.</p>
-        ) : (
-          visible.map((item) => (
-            <label key={item.id} className="flex min-h-11 cursor-pointer items-center gap-3 border-b px-3 last:border-0">
+      {pinned.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {pinned.map((item) => {
+            const on = selected.includes(item.id);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => onToggle(item.id)}
+                className={
+                  on
+                    ? "rounded-full bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
+                    : "rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/15"
+                }
+              >
+                {item.name}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <Input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Filter lessons" aria-label={`Filter ${label.toLowerCase()} lessons`} />
+      {rest.length === 0 && pinned.length === 0 ? (
+        <p className="rounded-lg border px-3 py-4 text-sm text-muted-foreground">No lessons match.</p>
+      ) : rest.length > 0 ? (
+        <div className="max-h-48 overflow-y-auto rounded-lg border">
+          {rest.map((item) => (
+            <label key={item.id} className="flex min-h-10 cursor-pointer items-center gap-3 border-b px-3 last:border-0">
               <Checkbox checked={selected.includes(item.id)} onCheckedChange={() => onToggle(item.id)} />
               <span className="text-sm">{item.name}</span>
-              {suggested.has(item.id) ? (
-                <span className="ml-auto text-xs text-muted-foreground">Suggested</span>
-              ) : null}
             </label>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

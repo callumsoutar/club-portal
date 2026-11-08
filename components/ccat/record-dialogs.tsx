@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 
-import { recordSignoff, saveIntake, saveStudent, voidSignoff } from "@/lib/ccat/actions";
+import { recordSignoff, saveIntake, saveStudent, updateSignoff, voidSignoff } from "@/lib/ccat/actions";
+import type { SignoffStamp } from "@/lib/ccat/progress";
+import type { EventKind } from "@/lib/ccat/types";
 import type { CcatIntake, CcatStudent } from "@/lib/ccat/types";
 import { Button } from "@/components/flight/ui/button";
 import {
@@ -211,15 +213,21 @@ export function SignoffButton({
   instructors,
   defaultInstructorId,
   label,
+  emphasis = false,
+  existing,
 }: {
   studentId: string;
   itemId: string;
   itemName: string;
-  kind: "learnt" | "taught" | "completed";
+  kind: EventKind;
   today: string;
   instructors: { id: string; name: string }[];
   defaultInstructorId: string;
   label: string;
+  /** Primary style for the next sign-off an instructor is likely to record. */
+  emphasis?: boolean;
+  /** When set, the dialog updates this record instead of creating one. */
+  existing?: SignoffStamp;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -228,41 +236,87 @@ export function SignoffButton({
   const [instructorId, setInstructorId] = useState(defaultInstructorId);
   const [notes, setNotes] = useState("");
 
+  const named = kind === "delivered" || kind === "received";
+  const [instructorName, setInstructorName] = useState(
+    () => instructors.find((instructor) => instructor.id === defaultInstructorId)?.name ?? "",
+  );
+  const fieldKey = existing?.eventId ?? `${itemId}-${kind}`;
+
+  function chooseInstructor(value: string) {
+    if (value === "none") {
+      setInstructorId("");
+      return;
+    }
+    setInstructorId(value);
+    const match = instructors.find((instructor) => instructor.id === value);
+    if (match) setInstructorName(match.name);
+  }
+
+  function openDialog() {
+    setEventDate(existing?.date ?? today);
+    setInstructorId(existing ? existing.instructorId ?? "" : defaultInstructorId);
+    setInstructorName(
+      existing
+        ? existing.instructorName ?? ""
+        : instructors.find((instructor) => instructor.id === defaultInstructorId)?.name ?? "",
+    );
+    setNotes(existing?.notes ?? "");
+    setOpen(true);
+  }
+
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
-    const result = await recordSignoff({ studentId, itemId, kind, eventDate, instructorId, notes });
+    const payload = {
+      eventDate,
+      instructorId,
+      instructorName: named ? instructorName : undefined,
+      notes,
+    };
+    const result = existing
+      ? await updateSignoff({ id: existing.eventId, ...payload })
+      : await recordSignoff({ studentId, itemId, kind, ...payload });
     setPending(false);
     if (!result.ok) {
-      toast.error(result.error ?? "Could not record the sign-off.");
+      toast.error(result.error ?? (existing ? "Could not update the sign-off." : "Could not record the sign-off."));
       return;
     }
-    toast.success("Sign-off recorded");
+    toast.success(existing ? "Sign-off updated" : "Sign-off recorded");
     setOpen(false);
     router.refresh();
   }
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="text-sm text-primary hover:underline">
-        {label}
-      </button>
+      {existing ? (
+        <button type="button" onClick={openDialog} className="text-xs text-muted-foreground hover:text-foreground">
+          {label}
+        </button>
+      ) : (
+        <Button type="button" size="xs" variant={emphasis ? "default" : "outline"} onClick={openDialog}>
+          {label}
+        </Button>
+      )}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {kind === "learnt" ? "Record learnt" : kind === "taught" ? "Record taught" : "Record completion"}
-            </DialogTitle>
+            <DialogTitle>{existing ? signoffEditTitle(kind) : signoffTitle(kind)}</DialogTitle>
           </DialogHeader>
           <form onSubmit={onSubmit} className="space-y-4">
             <p className="text-sm text-muted-foreground">{itemName}</p>
+            {kind === "received" && !existing ? (
+              <p className="text-sm text-muted-foreground">Signed once. This means the student has received it.</p>
+            ) : null}
+            {kind === "delivered" && !existing ? (
+              <p className="text-sm text-muted-foreground">You can record another delivery whenever it is given again.</p>
+            ) : null}
             <div className="space-y-2">
-              <Label htmlFor={`signoff-date-${itemId}-${kind}`}>Date</Label>
-              <Input id={`signoff-date-${itemId}-${kind}`} type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} required />
+              <Label htmlFor={`signoff-date-${fieldKey}`}>Date</Label>
+              <Input id={`signoff-date-${fieldKey}`} type="date" value={eventDate} onChange={(event) => setEventDate(event.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Instructor</Label>
-              <Select value={instructorId || "none"} onValueChange={(value) => setInstructorId(value === "none" ? "" : value)}>
+              <Select value={instructorId || "none"} onValueChange={chooseInstructor}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Not listed</SelectItem>
@@ -272,9 +326,21 @@ export function SignoffButton({
                 </SelectContent>
               </Select>
             </div>
+            {named ? (
+              <div className="space-y-2">
+                <Label htmlFor={`signoff-name-${fieldKey}`}>Instructor name</Label>
+                <Input
+                  id={`signoff-name-${fieldKey}`}
+                  value={instructorName}
+                  onChange={(event) => setInstructorName(event.target.value)}
+                  required
+                  autoComplete="name"
+                />
+              </div>
+            ) : null}
             <div className="space-y-2">
-              <Label htmlFor={`signoff-notes-${itemId}-${kind}`}>Notes</Label>
-              <Textarea id={`signoff-notes-${itemId}-${kind}`} value={notes} onChange={(event) => setNotes(event.target.value)} />
+              <Label htmlFor={`signoff-notes-${fieldKey}`}>Notes</Label>
+              <Textarea id={`signoff-notes-${fieldKey}`} value={notes} onChange={(event) => setNotes(event.target.value)} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
@@ -285,6 +351,22 @@ export function SignoffButton({
       </Dialog>
     </>
   );
+}
+
+function signoffTitle(kind: EventKind) {
+  if (kind === "learnt") return "Record learnt";
+  if (kind === "taught") return "Record taught";
+  if (kind === "delivered") return "Record delivery";
+  if (kind === "received") return "Mark received";
+  return "Record completion";
+}
+
+function signoffEditTitle(kind: EventKind) {
+  if (kind === "learnt") return "Edit learnt";
+  if (kind === "taught") return "Edit taught";
+  if (kind === "delivered") return "Edit delivery";
+  if (kind === "received") return "Edit received";
+  return "Edit sign-off";
 }
 
 export function ClearSignoffButton({ id }: { id: string }) {

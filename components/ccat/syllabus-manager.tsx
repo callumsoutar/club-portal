@@ -51,7 +51,11 @@ export function SyllabusManager({
               <div>
                 <h2 className="text-base font-semibold">{category.name}</h2>
                 <p className="text-sm text-muted-foreground">
-                  {category.signoffMode === "learnt_taught" ? "Learnt and taught are signed off separately." : "One completion sign-off."}
+                  {category.signoffMode === "learnt_taught"
+                    ? "Learnt and taught are signed off separately."
+                    : category.signoffMode === "delivery"
+                      ? "Each delivery can be recorded again. Received is signed once."
+                      : "One completion sign-off."}
                 </p>
               </div>
               <ItemDialog category={category} categories={categories} />
@@ -68,7 +72,11 @@ export function SyllabusManager({
                         {item.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {item.signoffMode === "learnt_taught" ? "Learnt and taught" : "Single completion"}
+                        {item.signoffMode === "learnt_taught"
+                          ? "Learnt and taught"
+                          : item.signoffMode === "delivery"
+                            ? "Delivered and received"
+                            : "Single completion"}
                         {item.isActive ? "" : " · Disabled"}
                       </p>
                     </div>
@@ -87,6 +95,11 @@ export function SyllabusManager({
       })}
     </div>
   );
+}
+
+function parseMode(value: string): SignoffMode {
+  if (value === "learnt_taught" || value === "delivery" || value === "single") return value;
+  return "single";
 }
 
 function MoveButton({ id, direction, disabled }: { id: string; direction: "up" | "down"; disabled: boolean }) {
@@ -204,11 +217,12 @@ function ItemDialog({
             </div>
             <div className="space-y-2">
               <Label>Sign-off</Label>
-              <Select value={mode} onValueChange={(value) => setMode(value === "single" ? "single" : "learnt_taught")}>
+              <Select value={mode} onValueChange={(value) => setMode(parseMode(value))}>
                 <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="learnt_taught">Learnt and taught</SelectItem>
                   <SelectItem value="single">Single completion</SelectItem>
+                  <SelectItem value="delivery">Delivered and received</SelectItem>
                 </SelectContent>
               </Select>
             </div>

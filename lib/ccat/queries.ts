@@ -132,8 +132,12 @@ export const getCcatDirectory = cache(async (): Promise<CcatDirectory> => {
   };
 });
 
+function isEventKind(value: unknown): value is EventKind {
+  return value === "learnt" || value === "taught" || value === "completed" || value === "delivered" || value === "received";
+}
+
 function mapEvent(row: Record<string, unknown>): CcatEvent {
-  const kind = row.kind === "taught" || row.kind === "completed" ? row.kind : "learnt";
+  const kind = isEventKind(row.kind) ? row.kind : "learnt";
   return {
     id: String(row.id),
     studentId: String(row.student_id),

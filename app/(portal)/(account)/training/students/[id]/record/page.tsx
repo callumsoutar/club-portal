@@ -42,8 +42,11 @@ export default async function TrainingRecordPage({ params }: { params: Promise<{
             <thead>
               <tr className="border-b text-left">
                 <th className="py-1 pr-3 font-medium">Exercise</th>
-                <th className="py-1 pr-3 font-medium">{category.signoffMode === "single" ? "Completed" : "Learnt"}</th>
+                <th className="py-1 pr-3 font-medium">
+                  {category.signoffMode === "delivery" ? "Received" : category.signoffMode === "single" ? "Completed" : "Learnt"}
+                </th>
                 {category.signoffMode === "learnt_taught" ? <th className="py-1 font-medium">Taught</th> : null}
+                {category.signoffMode === "delivery" ? <th className="py-1 font-medium">Delivered</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -52,8 +55,9 @@ export default async function TrainingRecordPage({ params }: { params: Promise<{
                 .map((row) => (
                   <tr key={row.item.id} className="border-b">
                     <td className="py-1 pr-3">{row.item.name}</td>
-                    <td className="py-1 pr-3">{stamp(category.signoffMode === "single" ? row.completed : row.learnt)}</td>
+                    <td className="py-1 pr-3">{stamp(category.signoffMode === "delivery" ? row.received : category.signoffMode === "single" ? row.completed : row.learnt)}</td>
                     {category.signoffMode === "learnt_taught" ? <td className="py-1">{stamp(row.taught)}</td> : null}
+                    {category.signoffMode === "delivery" ? <td className="py-1">{deliveries(row.deliveries)}</td> : null}
                   </tr>
                 ))}
             </tbody>
@@ -86,4 +90,9 @@ export default async function TrainingRecordPage({ params }: { params: Promise<{
 function stamp(value: { date: string; instructorName: string | null } | null) {
   if (!value) return "—";
   return `${formatDate(value.date)}${value.instructorName ? ` · ${value.instructorName}` : ""}`;
+}
+
+function deliveries(values: { date: string; instructorName: string | null }[]) {
+  if (values.length === 0) return "—";
+  return values.map((value) => stamp(value)).join("; ");
 }
