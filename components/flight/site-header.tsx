@@ -29,7 +29,7 @@ export function SiteHeader({
   const { isMobile, setOpenMobile } = useSidebar();
 
   return (
-    <header className="sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center border-b bg-card">
+    <header className="sticky top-0 z-30 flex h-(--header-height) shrink-0 items-center border-b bg-card print:hidden">
       <div className="flex w-full min-w-0 items-center gap-3 px-3 sm:px-4 lg:px-6">
         <SidebarTrigger className="-ml-1 size-9 text-muted-foreground hover:text-foreground md:hidden" />
 
