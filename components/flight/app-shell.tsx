@@ -8,6 +8,7 @@ import type { AppRole } from "@/lib/flight/types";
 interface AppShellProps {
   role: AppRole | null;
   safetyAdmin: boolean;
+  trainingStudent?: boolean;
   /** Null for signed-out visitors, who get the public nav and a sign-in action. */
   user: ShellUser | null;
   companyName: string;
@@ -23,6 +24,7 @@ interface AppShellProps {
 export function AppShell({
   role,
   safetyAdmin,
+  trainingStudent = false,
   user,
   companyName,
   logoUrl,
@@ -38,7 +40,7 @@ export function AppShell({
         } as React.CSSProperties
       }
     >
-      <AppSidebar flightRole={role} safetyAdmin={safetyAdmin} />
+      <AppSidebar flightRole={role} safetyAdmin={safetyAdmin} trainingStudent={trainingStudent} />
       <SidebarInset className="min-w-0 bg-background">
         <SiteHeader
           companyName={companyName}
