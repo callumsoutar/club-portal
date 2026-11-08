@@ -35,7 +35,7 @@ async function requireAdmin() {
 function refresh(studentId?: string) {
   revalidatePath("/training");
   revalidatePath("/training/flights");
-  revalidatePath("/training/syllabus");
+  revalidatePath("/admin/settings");
   revalidatePath("/training/me");
   if (studentId) revalidatePath(`/training/students/${studentId}`);
 }

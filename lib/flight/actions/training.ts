@@ -24,9 +24,10 @@ async function requireStaff() {
   return user;
 }
 
-function refresh() {
-  revalidatePath("/fly/instructor/training");
+function refresh(userId?: string) {
+  revalidatePath("/training/enrolments");
   revalidatePath("/admin/settings");
+  if (userId) revalidatePath(`/training/enrolments/${userId}`);
 }
 
 const syllabusSchema = z.object({
@@ -164,8 +165,7 @@ export async function recordLesson(input: unknown): Promise<TrainingActionResult
     record_source: "manual",
   });
   if (error) return { ok: false, error: "Could not save the lesson record." };
-  refresh();
-  revalidatePath(`/fly/instructor/training/${parsed.data.userId}`);
+  refresh(parsed.data.userId);
   return { ok: true };
 }
 
@@ -201,6 +201,6 @@ export async function recordFlightTest(input: unknown): Promise<TrainingActionRe
     recorded_by: actor.id,
   });
   if (error) return { ok: false, error: "Could not save the flight test." };
-  refresh();
+  refresh(row.user_id);
   return { ok: true };
 }

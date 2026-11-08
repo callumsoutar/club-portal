@@ -74,16 +74,16 @@ export const APP_NAV: NavItem[] = [
   { ...AUTHORISE_NAV, access: "public", section: "home" },
   { href: "/safety", title: "Safety Hub", icon: BookOpen, access: "public", section: "home" },
   {
-    href: "/training",
+    href: "/training/enrolments",
     title: "Training",
     icon: GraduationCap,
     access: "instructor",
     section: "home",
     children: [
-      { href: "/training", title: "Students" },
+      { href: "/training/enrolments", title: "Training" },
+      { href: "/training", title: "C Cat" },
       { href: "/training/flights", title: "Flight log" },
       { href: "/training/questions", title: "POF questions" },
-      { href: "/training/syllabus", title: "Syllabus", admin: true },
     ],
   },
   {
@@ -99,13 +99,6 @@ export const APP_NAV: NavItem[] = [
     title: "My flights",
     icon: Plane,
     access: "member",
-    section: "flying",
-  },
-  {
-    href: "/fly/instructor/training",
-    title: "Students",
-    icon: Users,
-    access: "instructor",
     section: "flying",
   },
   {
@@ -175,9 +168,9 @@ export const PROFILE_NAV = {
 /** Href to permission. Public routes are omitted. */
 const NAV_PERMISSION: Record<string, Permission> = {
   "/training": "training.record",
+  "/training/enrolments": "training.record",
   "/training/me": "flights.read",
   "/fly": "flights.read",
-  "/fly/instructor/training": "training.record",
   "/fly/instructor": "authorisations.review",
   "/traffic": "traffic.read",
   "/admin": "safety.manage",
@@ -211,8 +204,14 @@ export function navSections(access: NavAccessContext) {
   })).filter((section) => section.items.length > 0);
 }
 
-/** Which training submenu row is current. The Students row also covers a student's record. */
+/** Which training submenu row is current. C Cat also covers a student's C Cat record. */
 export function isNavChildActive(pathname: string, href: string, parentHref: string) {
+  if (href === "/training/enrolments") {
+    return pathname === "/training/enrolments" || pathname.startsWith("/training/enrolments/");
+  }
+  if (href === "/training") {
+    return pathname === "/training" || pathname.startsWith("/training/students");
+  }
   if (href === parentHref) {
     return pathname === parentHref || pathname.startsWith(`${parentHref}/students`);
   }
@@ -228,7 +227,7 @@ export function isNavActive(pathname: string, href: string) {
   if (href === "/admin") {
     return pathname === "/admin" || pathname.startsWith("/admin/messages");
   }
-  if (href === "/training") {
+  if (href === "/training/enrolments") {
     return pathname === "/training" || (pathname.startsWith("/training/") && !pathname.startsWith("/training/me"));
   }
   if (href === "/admin/settings") {

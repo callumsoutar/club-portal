@@ -1,10 +1,12 @@
 import { redirect } from "next/navigation";
 
+import { SyllabusManager } from "@/components/ccat/syllabus-manager";
 import { ClubSettingsForm } from "@/components/flight/admin/club-settings-form";
 import { ClubSettingsTabs } from "@/components/flight/admin/club-settings-tabs";
 import { TrainingProgrammes } from "@/components/flight/admin/training-programmes";
 import { Page, PageHeader } from "@/components/portal/page";
 import { getAdminUser } from "@/lib/auth";
+import { getCcatDirectory } from "@/lib/ccat/queries";
 import { getSessionUser } from "@/lib/flight/auth";
 import { getMembers } from "@/lib/flight/members";
 import { getActiveInstructors, getClubSettings } from "@/lib/flight/queries";
@@ -29,8 +31,12 @@ export default async function ClubSettingsPage({
   const flightAdmin = session?.profile.role === "admin";
   if (!safetyAdmin && !flightAdmin) redirect("/fly");
 
-  const training = flightAdmin ? await loadTrainingProgrammes() : null;
-  const initial = tab === "training" && training ? "training" : "club";
+  const extras = flightAdmin
+    ? await Promise.all([loadTrainingProgrammes(), loadCcatSyllabus()] as const)
+    : null;
+  const training = extras?.[0] ?? null;
+  const ccat = extras?.[1] ?? null;
+  const initial = tab === "ccat" && ccat ? "ccat" : tab === "training" && training ? "training" : "club";
 
   return (
     <Page width="wide" className="gap-6">
@@ -38,13 +44,12 @@ export default async function ClubSettingsPage({
         title="Club settings"
         description={
           training
-            ? "Club identity and operations, plus the syllabi students train on."
+            ? "Club identity and operations, the syllabi students train on, and the C Cat syllabus."
             : "Club name, logo, local time, reserve, member login, and authorisation email."
         }
       />
       <ClubSettingsTabs
         initial={initial}
-        showTraining={Boolean(training)}
         club={
           <ClubSettingsForm
             embedded
@@ -62,6 +67,11 @@ export default async function ClubSettingsPage({
               members={training.members}
               instructors={training.instructors}
             />
+          ) : null
+        }
+        ccat={
+          ccat ? (
+            <SyllabusManager categories={ccat.categories} items={ccat.items} />
           ) : null
         }
       />
@@ -84,5 +94,19 @@ async function loadTrainingProgrammes() {
         name: member.profile.full_name?.trim() || member.profile.email,
       })),
     instructors: instructors.map((instructor) => ({ id: instructor.id, name: instructor.full_name })),
+  };
+}
+
+async function loadCcatSyllabus() {
+  const directory = await getCcatDirectory();
+  return {
+    categories: [...directory.categories]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((category) => ({
+        id: category.id,
+        name: category.name,
+        signoffMode: category.signoffMode,
+      })),
+    items: directory.items,
   };
 }

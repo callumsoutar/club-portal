@@ -240,11 +240,11 @@ export function SyllabusTable({
       <table className={cn("w-full text-sm", delivery ? "min-w-[52rem]" : "min-w-[40rem]")}>
         <thead>
           <tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="px-3 py-2 font-medium">Status</th>
             <th className="px-3 py-2 font-medium">Item</th>
             <th className="px-3 py-2 font-medium">{delivery ? "Received" : paired ? "Learnt" : "Signed off"}</th>
             {delivery ? <th className="px-3 py-2 font-medium">Delivered</th> : null}
             {paired ? <th className="px-3 py-2 font-medium">Taught</th> : null}
-            <th className="px-3 py-2 font-medium">Status</th>
           </tr>
         </thead>
         <tbody>
@@ -253,6 +253,9 @@ export function SyllabusTable({
             const next = row.item.id === nextLearnId || row.item.id === nextTeachId || row.item.id === nextSingleId || row.item.id === nextReceivedId;
             return (
               <tr key={row.item.id} className={cn("border-b last:border-0", next && "bg-primary/5")}>
+                <td className="px-3 py-1.5 whitespace-nowrap">
+                  <StatusPill status={row.status} />
+                </td>
                 <td className="px-3 py-1.5 font-medium">
                   <span className="inline-flex items-center gap-2">
                     {row.item.name}
@@ -373,9 +376,6 @@ export function SyllabusTable({
                     )}
                   </td>
                 ) : null}
-                <td className="px-3 py-1.5">
-                  <StatusPill status={row.status} />
-                </td>
               </tr>
             );
           })}

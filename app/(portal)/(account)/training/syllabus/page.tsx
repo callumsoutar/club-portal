@@ -1,23 +1,8 @@
-import { SyllabusManager } from "@/components/ccat/syllabus-manager";
-import { Page, PageHeader } from "@/components/portal/page";
-import { getCcatDirectory } from "@/lib/ccat/queries";
-import { requireAdmin } from "@/lib/flight/auth";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "C Cat syllabus" };
+import { requireAdmin } from "@/lib/flight/auth";
 
 export default async function SyllabusPage() {
   await requireAdmin();
-  const directory = await getCcatDirectory();
-  const categories = [...directory.categories].sort((a, b) => a.sortOrder - b.sortOrder);
-
-  return (
-    <Page>
-      <PageHeader
-        eyebrow="Training"
-        title="Syllabus"
-        description="The same syllabus is shared by every intake. Disabling an item keeps the training records already signed off against it."
-      />
-      <SyllabusManager categories={categories} items={directory.items} />
-    </Page>
-  );
+  redirect("/admin/settings?tab=ccat");
 }
