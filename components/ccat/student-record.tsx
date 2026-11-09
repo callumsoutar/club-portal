@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { ClearSignoffButton, SignoffButton } from "@/components/ccat/record-dialogs";
 import { EditFlightButton, RemoveFlightButton } from "@/components/ccat/log-flight-dialog";
 import type { FlightFormContext } from "@/lib/ccat/present";
 import type { ItemProgress, StudentProgress } from "@/lib/ccat/progress";
@@ -84,7 +83,13 @@ export function ProgressTracker({ progress }: { progress: StudentProgress }) {
   );
 }
 
-export function StatusPill({ status }: { status: StudentProgress["status"] | ItemProgress["status"] }) {
+export function StatusPill({
+  status,
+  className,
+}: {
+  status: StudentProgress["status"] | ItemProgress["status"];
+  className?: string;
+}) {
   const label = status in STATUS_LABEL ? STATUS_LABEL[status as ItemProgress["status"]] : status;
   const tone =
     status === "Complete" || status === "complete"
@@ -95,7 +100,7 @@ export function StatusPill({ status }: { status: StudentProgress["status"] | Ite
           ? STATUS_CLASS.learnt
           : STATUS_CLASS.not_started;
   return (
-    <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-xs font-medium", tone)}>
+    <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-xs font-medium", tone, className)}>
       {label}
     </span>
   );
@@ -203,205 +208,11 @@ export function syllabusEmpty(focus: SyllabusFocus, category: string) {
   return CATEGORY_COPY[category]?.empty ?? "Nothing in this section yet.";
 }
 
-export function SyllabusTable({
-  rows,
-  staff,
-  studentId,
-  today,
-  instructors,
-  defaultInstructorId,
-  empty = "Nothing in this view.",
-}: {
-  rows: ItemProgress[];
-  staff: boolean;
-  studentId: string;
-  today: string;
-  instructors: { id: string; name: string }[];
-  defaultInstructorId: string;
-  empty?: string;
-}) {
-  if (rows.length === 0) {
-    return (
-      <p className="rounded-xl border border-dashed px-4 py-8 text-sm text-muted-foreground">
-        {empty}
-      </p>
-    );
-  }
-
-  const delivery = rows.every((row) => row.item.signoffMode === "delivery");
-  const paired = !delivery && rows.some((row) => row.item.signoffMode === "learnt_taught");
-  const nextLearnId = rows.find((row) => row.item.signoffMode === "learnt_taught" && !row.learnt)?.item.id;
-  const nextTeachId = rows.find((row) => row.item.signoffMode === "learnt_taught" && row.learnt && !row.taught)?.item.id;
-  const nextSingleId = rows.find((row) => row.item.signoffMode === "single" && !row.completed)?.item.id;
-  const nextReceivedId = rows.find((row) => row.item.signoffMode === "delivery" && !row.received)?.item.id;
-
-  return (
-    <div className="overflow-x-auto rounded-xl border bg-card">
-      <table className={cn("w-full text-sm", delivery ? "min-w-[52rem]" : "min-w-[40rem]")}>
-        <thead>
-          <tr className="border-b text-left text-xs text-muted-foreground">
-            <th className="px-3 py-2 font-medium">Status</th>
-            <th className="px-3 py-2 font-medium">Item</th>
-            <th className="px-3 py-2 font-medium">{delivery ? "Received" : paired ? "Learnt" : "Signed off"}</th>
-            {delivery ? <th className="px-3 py-2 font-medium">Delivered</th> : null}
-            {paired ? <th className="px-3 py-2 font-medium">Taught</th> : null}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const single = row.item.signoffMode === "single";
-            const next = row.item.id === nextLearnId || row.item.id === nextTeachId || row.item.id === nextSingleId || row.item.id === nextReceivedId;
-            return (
-              <tr key={row.item.id} className={cn("border-b last:border-0", next && "bg-primary/5")}>
-                <td className="px-3 py-1.5 whitespace-nowrap">
-                  <StatusPill status={row.status} />
-                </td>
-                <td className="px-3 py-1.5 font-medium">
-                  <span className="inline-flex items-center gap-2">
-                    {row.item.name}
-                    {next ? <span className="text-[11px] font-medium text-primary">Next</span> : null}
-                    {!row.item.isActive ? <span className="text-xs font-normal text-muted-foreground">Retired</span> : null}
-                  </span>
-                </td>
-                <td className="px-3 py-1.5 whitespace-nowrap">
-                  {row.item.signoffMode === "delivery" ? (
-                    <Stamp
-                      stamp={row.received}
-                      staff={staff}
-                      empty={
-                        <SignoffButton
-                          studentId={studentId}
-                          itemId={row.item.id}
-                          itemName={row.item.name}
-                          kind="received"
-                          today={today}
-                          instructors={instructors}
-                          defaultInstructorId={defaultInstructorId}
-                          label="Mark received"
-                          emphasis={row.item.id === nextReceivedId}
-                        />
-                      }
-                    />
-                  ) : single ? (
-                    <Stamp
-                      stamp={row.completed}
-                      staff={staff}
-                      empty={
-                        <SignoffButton
-                          studentId={studentId}
-                          itemId={row.item.id}
-                          itemName={row.item.name}
-                          kind="completed"
-                          today={today}
-                          instructors={instructors}
-                          defaultInstructorId={defaultInstructorId}
-                          label="Sign off"
-                          emphasis={row.item.id === nextSingleId}
-                        />
-                      }
-                    />
-                  ) : (
-                    <Stamp
-                      stamp={row.learnt}
-                      staff={staff}
-                      empty={
-                        staff ? (
-                          <SignoffButton
-                            studentId={studentId}
-                            itemId={row.item.id}
-                            itemName={row.item.name}
-                            kind="learnt"
-                            today={today}
-                            instructors={instructors}
-                            defaultInstructorId={defaultInstructorId}
-                            label="Mark as learnt"
-                            emphasis={row.item.id === nextLearnId}
-                          />
-                        ) : (
-                          "—"
-                        )
-                      }
-                    />
-                  )}
-                </td>
-                {delivery ? (
-                  <td className="px-3 py-1.5">
-                    <div className="flex flex-col items-start gap-1">
-                      {row.deliveries.map((deliveryStamp) => (
-                        <Stamp key={deliveryStamp.eventId} stamp={deliveryStamp} staff={staff} empty={null} />
-                      ))}
-                      {staff ? (
-                        <SignoffButton
-                          studentId={studentId}
-                          itemId={row.item.id}
-                          itemName={row.item.name}
-                          kind="delivered"
-                          today={today}
-                          instructors={instructors}
-                          defaultInstructorId={defaultInstructorId}
-                          label="Record delivery"
-                        />
-                      ) : row.deliveries.length === 0 ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : null}
-                    </div>
-                  </td>
-                ) : null}
-                {paired ? (
-                  <td className="px-3 py-1.5 whitespace-nowrap">
-                    {single ? (
-                      <span className="text-muted-foreground">—</span>
-                    ) : (
-                      <Stamp
-                        stamp={row.taught}
-                        staff={staff}
-                        empty={
-                          staff ? (
-                            <SignoffButton
-                              studentId={studentId}
-                              itemId={row.item.id}
-                              itemName={row.item.name}
-                              kind="taught"
-                              today={today}
-                              instructors={instructors}
-                              defaultInstructorId={defaultInstructorId}
-                              label="Mark as taught"
-                              emphasis={row.item.id === nextTeachId}
-                            />
-                          ) : (
-                            "—"
-                          )
-                        }
-                      />
-                    )}
-                  </td>
-                ) : null}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function Stamp({
-  stamp,
-  staff,
-  empty,
-}: {
-  stamp: ItemProgress["learnt"];
-  staff: boolean;
-  empty: React.ReactNode;
-}) {
-  if (!stamp) return staff ? empty : <span className="text-muted-foreground">—</span>;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-0.5">
-      <span>{formatDate(stamp.date)}</span>
-      <span className="text-xs text-muted-foreground">{stamp.instructorName || "Instructor not recorded"}</span>
-      {staff ? <ClearSignoffButton id={stamp.eventId} /> : null}
-    </span>
-  );
+export function syllabusSearchPlaceholder(category: string) {
+  if (category === "flight") return "Search lessons";
+  if (category === "pof") return "Search lectures";
+  if (category === "briefing") return "Search briefings";
+  return undefined;
 }
 
 export function FlightHistory({

@@ -7,12 +7,13 @@ import {
   FocusLinks,
   ProgressTracker,
   StatusPill,
-  SyllabusTable,
   categoryHelp,
   categoryList,
   parseFocus,
   syllabusEmpty,
+  syllabusSearchPlaceholder,
 } from "@/components/ccat/student-record";
+import { SyllabusTable } from "@/components/ccat/syllabus-table";
 import { Page, PageHeader } from "@/components/portal/page";
 import { studentProgress } from "@/lib/ccat/progress";
 import { getCcatDirectory } from "@/lib/ccat/queries";
@@ -104,6 +105,7 @@ export default async function MyTrainingPage({
           instructors={[]}
           defaultInstructorId=""
           empty={syllabusEmpty(focus, current)}
+          searchPlaceholder={syllabusSearchPlaceholder(current)}
         />
       </div>
       {current === "flight" ? (
