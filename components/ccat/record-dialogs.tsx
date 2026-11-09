@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/flight/ui/select";
 import { Textarea } from "@/components/flight/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export function IntakeButton({ intake }: { intake?: CcatIntake }) {
   const router = useRouter();
@@ -214,6 +215,7 @@ export function SignoffButton({
   defaultInstructorId,
   label,
   emphasis = false,
+  underline = false,
   existing,
 }: {
   studentId: string;
@@ -226,6 +228,7 @@ export function SignoffButton({
   label: string;
   /** Primary style for the next sign-off an instructor is likely to record. */
   emphasis?: boolean;
+  underline?: boolean;
   /** When set, the dialog updates this record instead of creating one. */
   existing?: SignoffStamp;
 }) {
@@ -293,7 +296,17 @@ export function SignoffButton({
           {label}
         </button>
       ) : (
-        <Button type="button" size="xs" variant={emphasis ? "default" : "outline"} onClick={openDialog}>
+        <Button
+          type="button"
+          size="xs"
+          variant="ghost"
+          onClick={openDialog}
+          className={cn(
+            "h-auto px-1.5 py-1 text-xs font-medium",
+            emphasis ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            underline && "underline decoration-primary/50 underline-offset-4 hover:decoration-primary",
+          )}
+        >
           {label}
         </Button>
       )}

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 
 import {
   CategoryLinks,
-  FlightHistory,
   FocusLinks,
   ProgressTracker,
   StatusPill,
@@ -17,7 +16,6 @@ import { SyllabusTable } from "@/components/ccat/syllabus-table";
 import { Page, PageHeader } from "@/components/portal/page";
 import { studentProgress } from "@/lib/ccat/progress";
 import { getCcatDirectory } from "@/lib/ccat/queries";
-import { visibleFlights } from "@/lib/ccat/present";
 import { requireUser } from "@/lib/flight/auth";
 import { formatDate } from "@/lib/flight/format";
 
@@ -108,12 +106,6 @@ export default async function MyTrainingPage({
           searchPlaceholder={syllabusSearchPlaceholder(current)}
         />
       </div>
-      {current === "flight" ? (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">Flights</h2>
-          <FlightHistory flights={visibleFlights(directory.flights, student.id)} staff={false} context={null} />
-        </section>
-      ) : null}
     </Page>
   );
 }
