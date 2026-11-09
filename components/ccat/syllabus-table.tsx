@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Check, Search } from "lucide-react";
 
 import { ClearSignoffButton, SignoffButton } from "@/components/ccat/record-dialogs";
 import { StatusPill } from "@/components/ccat/student-record";
 import { Input } from "@/components/flight/ui/input";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/flight/ui/tooltip";
 import type { ItemProgress, SignoffStamp } from "@/lib/ccat/progress";
 import { formatDate } from "@/lib/flight/format";
 import { cn } from "@/lib/utils";
@@ -53,9 +54,9 @@ export function SyllabusTable({
   const nextReceivedId = rows.find((row) => row.item.signoffMode === "delivery" && !row.received)?.item.id;
 
   return (
-    <div className="overflow-hidden rounded-xl border bg-card">
+    <div className="overflow-hidden rounded-xl border bg-card shadow-sm shadow-foreground/[0.03]">
       {searchPlaceholder ? (
-        <div className="flex items-center gap-3 border-b px-3 py-2">
+        <div className="flex min-h-14 items-center gap-3 border-b bg-muted/20 px-4 py-2.5">
           <div className="relative w-full max-w-xs">
             <Search className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input
@@ -63,7 +64,7 @@ export function SyllabusTable({
               onChange={(event) => setQuery(event.target.value)}
               placeholder={searchPlaceholder}
               aria-label={searchPlaceholder}
-              className="h-8 bg-background pl-8 text-sm"
+              className="h-9 border-transparent bg-background pl-8 text-sm shadow-sm focus-visible:border-ring"
             />
           </div>
           {needle ? (
@@ -77,14 +78,19 @@ export function SyllabusTable({
         <p className="px-4 py-8 text-sm text-muted-foreground">No records match this search.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className={cn("w-full text-sm", delivery ? "min-w-[52rem]" : "min-w-[40rem]")}>
+          <table className={cn(
+            "w-full text-sm [&_th:not(:last-child)]:border-r [&_td:not(:last-child)]:border-r [&_th:not(:last-child)]:border-border/60 [&_td:not(:last-child)]:border-border/60",
+            delivery ? "min-w-[68rem] [&_th:nth-child(n+4)]:bg-muted/15 [&_td:nth-child(n+4)]:bg-muted/10" : "min-w-[40rem]",
+          )}>
             <thead>
-              <tr className="border-b text-left text-xs text-muted-foreground">
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Item</th>
-                <th className="px-3 py-2 font-medium">{delivery ? "Received" : paired ? "Learnt" : "Signed off"}</th>
-                {delivery ? <th className="px-3 py-2 font-medium">Delivered</th> : null}
-                {paired ? <th className="px-3 py-2 font-medium">Taught</th> : null}
+              <tr className="border-b bg-muted/30 text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                <th className="w-32 px-4 py-3 font-semibold">Status</th>
+                <th className="min-w-56 px-4 py-3 font-semibold">Item</th>
+                <th className="min-w-56 px-4 py-3 font-semibold">{delivery ? "Received" : paired ? "Learnt" : "Signed off"}</th>
+                {delivery ? Array.from({ length: 4 }, (_, index) => (
+                  <th key={index} className="min-w-40 px-2 py-3 text-center font-semibold">Delivery {index + 1}</th>
+                )) : null}
+                {paired ? <th className="min-w-56 px-4 py-3 font-semibold">Taught</th> : null}
               </tr>
             </thead>
             <tbody>
@@ -96,18 +102,18 @@ export function SyllabusTable({
                   row.item.id === nextSingleId ||
                   row.item.id === nextReceivedId;
                 return (
-                  <tr key={row.item.id} className={cn("border-b align-middle last:border-b-0", next && "bg-primary/5")}>
-                    <td className="px-3 py-2 whitespace-nowrap">
-                      <StatusPill status={row.status} />
+                  <tr key={row.item.id} className={cn("border-b align-middle last:border-b-0 hover:bg-muted/25", next && "bg-primary/[0.035]")}>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <StatusPill status={row.status} className="h-6 px-2.5 text-[11px]" />
                     </td>
-                    <td className="px-3 py-2 font-medium text-foreground">
+                    <td className="px-4 py-3 font-medium leading-snug text-foreground">
                       <span className="inline-flex items-center gap-2">
                         {row.item.name}
-                        {next ? <span className="text-[11px] font-medium text-primary">Next</span> : null}
-                        {!row.item.isActive ? <span className="text-xs font-normal text-muted-foreground">Retired</span> : null}
+                        {next ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Next</span> : null}
+                        {!row.item.isActive ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Retired</span> : null}
                       </span>
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-4 py-2.5">
                       {row.item.signoffMode === "delivery" ? (
                         <Stamp
                           stamp={row.received}
@@ -169,30 +175,31 @@ export function SyllabusTable({
                       )}
                     </td>
                     {delivery ? (
-                      <td className="px-3 py-2">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {row.deliveries.map((deliveryStamp) => (
-                            <Stamp key={deliveryStamp.eventId} stamp={deliveryStamp} staff={staff} empty={null} />
-                          ))}
-                          {staff ? (
-                            <SignoffButton
-                              studentId={studentId}
-                              itemId={row.item.id}
-                              itemName={row.item.name}
-                              kind="delivered"
-                              today={today}
-                              instructors={instructors}
-                              defaultInstructorId={defaultInstructorId}
-                              label="Record delivery"
-                            />
-                          ) : row.deliveries.length === 0 ? (
-                            <span className="text-muted-foreground">—</span>
-                          ) : null}
-                        </div>
-                      </td>
+                      Array.from({ length: 4 }, (_, index) => {
+                        const stamp = row.deliveries[index];
+                        return (
+                          <td key={index} className="px-2 py-2.5 text-center">
+                            {stamp ? (
+                              <DeliveryCell stamps={index === 3 ? row.deliveries.slice(index) : [stamp]} staff={staff} />
+                            ) : staff && index === row.deliveries.length ? (
+                              <SignoffButton
+                                studentId={studentId}
+                                itemId={row.item.id}
+                                itemName={row.item.name}
+                                kind="delivered"
+                                today={today}
+                                instructors={instructors}
+                                defaultInstructorId={defaultInstructorId}
+                                label="Record delivery"
+                                underline
+                              />
+                            ) : <span className="text-muted-foreground">—</span>}
+                          </td>
+                        );
+                      })
                     ) : null}
                     {paired ? (
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-2.5">
                         {single ? (
                           <span className="text-muted-foreground">—</span>
                         ) : (
@@ -231,6 +238,31 @@ export function SyllabusTable({
   );
 }
 
+function DeliveryCell({ stamps, staff }: { stamps: SignoffStamp[]; staff: boolean }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      {stamps.map((stamp) => (
+        <Tooltip key={stamp.eventId}>
+          <TooltipTrigger asChild>
+            <span tabIndex={stamp.notes ? 0 : undefined} className="inline-flex items-center justify-center gap-1.5 text-xs whitespace-nowrap">
+              <Check className="size-3.5 text-success" aria-label="Delivered" />
+              <span className="font-semibold text-foreground">{instructorInitials(stamp.instructorName)}</span>
+              <span className="text-muted-foreground tabular-nums">{formatDate(stamp.date)}</span>
+              {staff ? <ClearSignoffButton id={stamp.eventId} /> : null}
+            </span>
+          </TooltipTrigger>
+          {stamp.notes ? <TooltipContent side="top" className="max-w-sm whitespace-pre-wrap">{stamp.notes}</TooltipContent> : null}
+        </Tooltip>
+      ))}
+    </div>
+  );
+}
+
+function instructorInitials(name: string | null) {
+  const parts = name?.trim().split(/\s+/).filter(Boolean) ?? [];
+  return parts.length ? parts.map((part) => part[0]).join("").toUpperCase() : "?";
+}
+
 function haystack(row: ItemProgress) {
   const stamps = [row.learnt, row.taught, row.completed, row.received, ...row.deliveries];
   const recorded = stamps.flatMap((stamp) =>
@@ -250,13 +282,11 @@ function Stamp({
 }) {
   if (!stamp) return staff ? empty : <span className="text-muted-foreground">—</span>;
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-md border bg-background px-2 py-1 text-xs whitespace-nowrap">
+    <span className="inline-flex items-center gap-2 text-xs whitespace-nowrap">
       <span className="font-medium text-foreground tabular-nums">{formatDate(stamp.date)}</span>
-      <span className="text-muted-foreground">{stamp.instructorName || "Instructor not recorded"}</span>
+      <span className="text-muted-foreground">· {stamp.instructorName || "Instructor not recorded"}</span>
       {staff ? (
-        <span className="border-l pl-1.5">
-          <ClearSignoffButton id={stamp.eventId} />
-        </span>
+        <ClearSignoffButton id={stamp.eventId} />
       ) : null}
     </span>
   );

@@ -5,9 +5,7 @@ import { RecordMenu } from "@/components/ccat/record-menu";
 import { StudentButton } from "@/components/ccat/record-dialogs";
 import { Avatar, AvatarFallback } from "@/components/flight/ui/avatar";
 import {
-  AuditList,
   CategoryLinks,
-  FlightHistory,
   FocusLinks,
   ProgressTracker,
   StatusPill,
@@ -21,7 +19,7 @@ import { SyllabusTable } from "@/components/ccat/syllabus-table";
 import { Page, PageHeader } from "@/components/portal/page";
 import { staleBefore, studentProgress } from "@/lib/ccat/progress";
 import { getCcatDirectory, getLinkedProfiles } from "@/lib/ccat/queries";
-import { buildFlightContext, visibleFlights } from "@/lib/ccat/present";
+import { buildFlightContext } from "@/lib/ccat/present";
 import { requireStaff } from "@/lib/flight/auth";
 import { getActiveAircraft, getActiveInstructors } from "@/lib/flight/queries";
 import { formatDate, initials } from "@/lib/flight/format";
@@ -71,7 +69,6 @@ export default async function StudentTrainingPage({
     actorId: user.id,
     today,
   });
-  const flights = visibleFlights(directory.flights, student.id);
   const stale = staleBefore(progress.lastActivity, today);
 
   return (
@@ -153,13 +150,6 @@ export default async function StudentTrainingPage({
           searchPlaceholder={syllabusSearchPlaceholder(current)}
         />
       </div>
-      {current === "flight" ? (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-semibold">Flights</h2>
-          <FlightHistory flights={flights} staff context={context} />
-        </section>
-      ) : null}
-      <AuditList audits={directory.audits.filter((audit) => audit.detail.studentId === student.id || audit.entityId === student.id)} />
     </Page>
   );
 }
