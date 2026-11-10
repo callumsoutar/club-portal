@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { recordSignoff, saveIntake, saveStudent, updateSignoff, voidSignoff } from "@/lib/ccat/actions";
@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/flight/ui/select";
 import { Textarea } from "@/components/flight/ui/textarea";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/flight/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export function IntakeButton({ intake }: { intake?: CcatIntake }) {
@@ -214,7 +215,6 @@ export function SignoffButton({
   instructors,
   defaultInstructorId,
   label,
-  emphasis = false,
   underline = false,
   existing,
 }: {
@@ -226,8 +226,6 @@ export function SignoffButton({
   instructors: { id: string; name: string }[];
   defaultInstructorId: string;
   label: string;
-  /** Primary style for the next sign-off an instructor is likely to record. */
-  emphasis?: boolean;
   underline?: boolean;
   /** When set, the dialog updates this record instead of creating one. */
   existing?: SignoffStamp;
@@ -302,8 +300,7 @@ export function SignoffButton({
           variant="ghost"
           onClick={openDialog}
           className={cn(
-            "h-auto px-1.5 py-1 text-xs font-medium",
-            emphasis ? "text-primary" : "text-muted-foreground hover:text-foreground",
+            "h-auto px-1.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground",
             underline && "underline decoration-primary/50 underline-offset-4 hover:decoration-primary",
           )}
         >
@@ -400,8 +397,19 @@ export function ClearSignoffButton({ id }: { id: string }) {
   }
 
   return (
-    <button type="button" onClick={clear} disabled={pending} className="text-xs text-muted-foreground hover:text-foreground">
-      Undo
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={clear}
+          disabled={pending}
+          aria-label="Undo"
+          className="inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : <Undo2 className="size-3.5" aria-hidden />}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">Undo</TooltipContent>
+    </Tooltip>
   );
 }

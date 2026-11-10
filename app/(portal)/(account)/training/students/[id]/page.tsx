@@ -120,17 +120,7 @@ export default async function StudentTrainingPage({
           focus={focus}
         />
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {categoryHelp(current)}
-            {current === "flight" ? (
-              <>
-                {" "}
-                Next to learn <span className="font-medium text-foreground">{progress.nextLearn ?? "the syllabus"}</span>
-                {" · "}
-                next to teach <span className="font-medium text-foreground">{progress.nextTeach ?? "nothing"}</span>.
-              </>
-            ) : null}
-          </p>
+          <p className="text-sm text-muted-foreground">{categoryHelp(current)}</p>
           <FocusLinks
             baseHref={`/training/students/${student.id}`}
             category={current}

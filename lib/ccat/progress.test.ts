@@ -65,8 +65,6 @@ it("learnt and taught stay independent and out of order does not complete earlie
   assert.equal(wing?.status, "learnt");
   assert.equal(wing?.taught, null);
   assert.equal(low?.status, "not_started");
-  assert.equal(progress.nextLearn, "Low Flying I");
-  assert.equal(progress.nextTeach, "Wingdrop Stalls");
 });
 
 it("a later learnt sign-off does not replace the original date", () => {

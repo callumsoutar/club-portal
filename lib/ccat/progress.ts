@@ -33,8 +33,6 @@ export interface StudentProgress {
   soloHours: number;
   lastActivity: string | null;
   status: "Not started" | "In progress" | "Nearing completion" | "Complete";
-  nextLearn: string | null;
-  nextTeach: string | null;
 }
 
 export interface ProgressPoint {
@@ -113,7 +111,6 @@ export function studentProgress(
   else if (overallPct >= NEARING * 100) status = "Nearing completion";
   else if (anyWork) status = "In progress";
 
-  const ordered = [...flight].sort((a, b) => a.item.sortOrder - b.item.sortOrder);
   const dates = [
     ...ownFlights.map((flight) => flight.flownOn),
     ...ownEvents.filter((event) => !event.voidedAt).map((event) => event.eventDate),
@@ -132,8 +129,6 @@ export function studentProgress(
     soloHours: roundHours(ownFlights.reduce((sum, flight) => sum + flight.soloHours, 0)),
     lastActivity: dates.at(-1) ?? null,
     status,
-    nextLearn: ordered.find((row) => !row.learnt)?.item.name ?? null,
-    nextTeach: ordered.find((row) => row.learnt && !row.taught)?.item.name ?? null,
   };
 }
 
