@@ -48,10 +48,6 @@ export function SyllabusTable({
 
   const delivery = rows.every((row) => row.item.signoffMode === "delivery");
   const paired = !delivery && rows.some((row) => row.item.signoffMode === "learnt_taught");
-  const nextLearnId = rows.find((row) => row.item.signoffMode === "learnt_taught" && !row.learnt)?.item.id;
-  const nextTeachId = rows.find((row) => row.item.signoffMode === "learnt_taught" && row.learnt && !row.taught)?.item.id;
-  const nextSingleId = rows.find((row) => row.item.signoffMode === "single" && !row.completed)?.item.id;
-  const nextReceivedId = rows.find((row) => row.item.signoffMode === "delivery" && !row.received)?.item.id;
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm shadow-foreground/[0.03]">
@@ -80,7 +76,7 @@ export function SyllabusTable({
         <div className="overflow-x-auto">
           <table className={cn(
             "w-full text-sm [&_th:not(:last-child)]:border-r [&_td:not(:last-child)]:border-r [&_th:not(:last-child)]:border-border/60 [&_td:not(:last-child)]:border-border/60",
-            delivery ? "min-w-[68rem] [&_th:nth-child(n+4)]:bg-muted/15 [&_td:nth-child(n+4)]:bg-muted/10" : "min-w-[40rem]",
+            delivery ? "min-w-[68rem]" : "min-w-[40rem]",
           )}>
             <thead>
               <tr className="border-b bg-muted/30 text-left text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
@@ -88,7 +84,15 @@ export function SyllabusTable({
                 <th className="min-w-56 px-4 py-3 font-semibold">Item</th>
                 <th className="min-w-56 px-4 py-3 font-semibold">{delivery ? "Received" : paired ? "Learnt" : "Signed off"}</th>
                 {delivery ? Array.from({ length: 4 }, (_, index) => (
-                  <th key={index} className="min-w-40 px-2 py-3 text-center font-semibold">Delivery {index + 1}</th>
+                  <th
+                    key={index}
+                    className={cn(
+                      "min-w-40 bg-foreground/[0.045] px-2 py-3 text-center font-semibold",
+                      index === 0 && "border-l-2! border-l-foreground/25! pl-3",
+                    )}
+                  >
+                    Delivery {index + 1}
+                  </th>
                 )) : null}
                 {paired ? <th className="min-w-56 px-4 py-3 font-semibold">Taught</th> : null}
               </tr>
@@ -96,20 +100,14 @@ export function SyllabusTable({
             <tbody>
               {visible.map((row) => {
                 const single = row.item.signoffMode === "single";
-                const next =
-                  row.item.id === nextLearnId ||
-                  row.item.id === nextTeachId ||
-                  row.item.id === nextSingleId ||
-                  row.item.id === nextReceivedId;
                 return (
-                  <tr key={row.item.id} className={cn("border-b align-middle last:border-b-0 hover:bg-muted/25", next && "bg-primary/[0.035]")}>
+                  <tr key={row.item.id} className="group border-b align-middle last:border-b-0 hover:bg-muted/25">
                     <td className="px-4 py-3 whitespace-nowrap">
                       <StatusPill status={row.status} className="h-6 px-2.5 text-[11px]" />
                     </td>
                     <td className="px-4 py-3 font-medium leading-snug text-foreground">
                       <span className="inline-flex items-center gap-2">
                         {row.item.name}
-                        {next ? <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">Next</span> : null}
                         {!row.item.isActive ? <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Retired</span> : null}
                       </span>
                     </td>
@@ -128,7 +126,6 @@ export function SyllabusTable({
                               instructors={instructors}
                               defaultInstructorId={defaultInstructorId}
                               label="Mark received"
-                              emphasis={row.item.id === nextReceivedId}
                             />
                           }
                         />
@@ -146,7 +143,6 @@ export function SyllabusTable({
                               instructors={instructors}
                               defaultInstructorId={defaultInstructorId}
                               label="Sign off"
-                              emphasis={row.item.id === nextSingleId}
                             />
                           }
                         />
@@ -165,7 +161,6 @@ export function SyllabusTable({
                                 instructors={instructors}
                                 defaultInstructorId={defaultInstructorId}
                                 label="Mark as learnt"
-                                emphasis={row.item.id === nextLearnId}
                               />
                             ) : (
                               "—"
@@ -178,7 +173,13 @@ export function SyllabusTable({
                       Array.from({ length: 4 }, (_, index) => {
                         const stamp = row.deliveries[index];
                         return (
-                          <td key={index} className="px-2 py-2.5 text-center">
+                          <td
+                            key={index}
+                            className={cn(
+                              "bg-foreground/[0.035] px-2 py-2.5 text-center group-hover:bg-foreground/[0.055]",
+                              index === 0 && "border-l-2! border-l-foreground/25! pl-3",
+                            )}
+                          >
                             {stamp ? (
                               <DeliveryCell stamps={index === 3 ? row.deliveries.slice(index) : [stamp]} staff={staff} />
                             ) : staff && index === row.deliveries.length ? (
@@ -217,7 +218,6 @@ export function SyllabusTable({
                                   instructors={instructors}
                                   defaultInstructorId={defaultInstructorId}
                                   label="Mark as taught"
-                                  emphasis={row.item.id === nextTeachId}
                                 />
                               ) : (
                                 "—"
