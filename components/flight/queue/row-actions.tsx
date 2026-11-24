@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/flight/ui/dropdown-menu";
 import { Textarea } from "@/components/flight/ui/textarea";
+import { ApproveConfirmationDialog } from "@/components/flight/approval/approve-confirmation-dialog";
 import {
   approveAuthorisation,
   archiveAuthorisation,
@@ -69,19 +70,24 @@ export function QueueRowActions({
 
   const [pending, setPending] = useState<"approve" | "archive" | null>(null);
   const [declineOpen, setDeclineOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [declining, setDeclining] = useState(false);
 
-  async function approve() {
+  async function approve(sendConfirmationEmail: boolean) {
     setPending("approve");
-    const result = await approveAuthorisation({ authorisationId });
+    const result = await approveAuthorisation({
+      authorisationId,
+      sendConfirmationEmail,
+    });
     setPending(null);
 
     if (!result.ok) {
       toast.error(result.error ?? "Couldn't approve.");
       return;
     }
+    setApproveOpen(false);
     toastClearedToFly(pilotName);
     router.refresh();
   }
@@ -137,10 +143,7 @@ export function QueueRowActions({
         <DropdownMenuContent align="end" className="min-w-52 p-1.5">
           {canDecide && (
             <DropdownMenuItem
-              onSelect={(e: Event) => {
-                e.preventDefault();
-                void approve();
-              }}
+              onSelect={() => setApproveOpen(true)}
               className="gap-3 rounded-lg px-2.5 py-2.5 text-[15px] font-medium focus:bg-success-muted focus:text-foreground"
             >
               <ActionIcon className="bg-success-muted text-success">
@@ -209,6 +212,15 @@ export function QueueRowActions({
           )}
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <ApproveConfirmationDialog
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        pending={pending === "approve"}
+        onConfirm={(sendConfirmationEmail) =>
+          void approve(sendConfirmationEmail)
+        }
+      />
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent>

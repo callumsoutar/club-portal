@@ -43,6 +43,7 @@ import {
   TableRow,
 } from "@/components/flight/ui/table";
 import { Textarea } from "@/components/flight/ui/textarea";
+import { ApproveConfirmationDialog } from "@/components/flight/approval/approve-confirmation-dialog";
 import {
   approveAuthorisation,
   declineAuthorisation,
@@ -253,6 +254,7 @@ function ReviewPanel({
   const timeZone = useClubTimeZone();
   const [pending, setPending] = useState<"approve" | "decline" | null>(null);
   const [declineOpen, setDeclineOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [reason, setReason] = useState("");
 
   const bfr = getExpiryInfo(item.pilot_bfr_expiry, timeZone);
@@ -275,15 +277,19 @@ function ReviewPanel({
     ...reviewQuantityIssues(item.answers, flightFigures),
   ];
 
-  async function approve() {
+  async function approve(sendConfirmationEmail: boolean) {
     setPending("approve");
-    const result = await approveAuthorisation({ authorisationId: item.id });
+    const result = await approveAuthorisation({
+      authorisationId: item.id,
+      sendConfirmationEmail,
+    });
     setPending(null);
 
     if (!result.ok) {
       toast.error(result.error ?? "Couldn't approve.");
       return;
     }
+    setApproveOpen(false);
     toastClearedToFly(item.pilot_name);
     onDone();
   }
@@ -462,7 +468,7 @@ function ReviewPanel({
           </Button>
 
           <Button
-            onClick={approve}
+            onClick={() => setApproveOpen(true)}
             disabled={pending !== null}
             className={cn(
               "h-12 flex-1 gap-2 rounded-xl text-base font-semibold",
@@ -479,6 +485,15 @@ function ReviewPanel({
           </Button>
         </div>
       </div>
+
+      <ApproveConfirmationDialog
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        pending={pending === "approve"}
+        onConfirm={(sendConfirmationEmail) =>
+          void approve(sendConfirmationEmail)
+        }
+      />
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent>
