@@ -303,6 +303,7 @@ async function writeAnswerRows(
 const decisionSchema = z.object({
   authorisationId: z.string().uuid(),
   reason: z.string().trim().max(1000).optional(),
+  sendConfirmationEmail: z.boolean().optional(),
 });
 
 export async function approveAuthorisation(
@@ -338,7 +339,7 @@ async function decide(
     return { ok: false, error: "You don't have permission to do that." };
   }
 
-  const { authorisationId, reason } = parsed.data;
+  const { authorisationId, reason, sendConfirmationEmail } = parsed.data;
   const existing = await getAuthorisation(authorisationId);
   if (!existing) return { ok: false, error: "Authorisation not found." };
 
@@ -372,9 +373,10 @@ async function decide(
   });
 
   const actorName = user.profile.full_name ?? user.email;
-  const pilotEmail = await resolvePilotEmail(existing);
+  const shouldEmailPilot = decision === "declined" || sendConfirmationEmail !== false;
+  const pilotEmail = shouldEmailPilot ? await resolvePilotEmail(existing) : null;
 
-  await Promise.all([
+  const followUpTasks: Promise<unknown>[] = [
     logActivity({
       authorisationId,
       actorId: user.id,
@@ -385,21 +387,29 @@ async function decide(
           ? `Approved by ${actorName}`
           : `Declined by ${actorName}${reason ? ` — ${reason}` : ""}`,
     }),
-    notify({
-      event: decision === "approved" ? "approval_granted" : "approval_declined",
-      deliverTo: "recipient",
-      to: pilotEmail,
-      recipientName: existing.pilot_name,
-      authorisationId,
-      payload: {
-        reference: existing.reference,
-        instructorName: actorName,
-        aircraft: existing.aircraft_registration ?? undefined,
-        reason,
-        link: absoluteUrl(`/a/${existing.access_token}`),
-      },
-    }),
-  ]);
+  ];
+
+  if (shouldEmailPilot) {
+    followUpTasks.push(
+      notify({
+        event:
+          decision === "approved" ? "approval_granted" : "approval_declined",
+        deliverTo: "recipient",
+        to: pilotEmail,
+        recipientName: existing.pilot_name,
+        authorisationId,
+        payload: {
+          reference: existing.reference,
+          instructorName: actorName,
+          aircraft: existing.aircraft_registration ?? undefined,
+          reason,
+          link: absoluteUrl(`/a/${existing.access_token}`),
+        },
+      }),
+    );
+  }
+
+  await Promise.all(followUpTasks);
 
   // Backfill pilot_email when we resolved it from the profile — keeps future
   // notifications consistent.

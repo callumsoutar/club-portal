@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/flight/ui/dialog";
 import { Textarea } from "@/components/flight/ui/textarea";
+import { ApproveConfirmationDialog } from "@/components/flight/approval/approve-confirmation-dialog";
 import {
   approveAuthorisation,
   archiveAuthorisation,
@@ -161,17 +162,22 @@ export function DecisionBar({
   const [pending, setPending] = useState<"approve" | "decline" | null>(null);
   const review = useContext(ReviewStatusContext);
   const [declineOpen, setDeclineOpen] = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
   const [reason, setReason] = useState("");
 
-  async function approve() {
+  async function approve(sendConfirmationEmail: boolean) {
     setPending("approve");
-    const result = await approveAuthorisation({ authorisationId });
+    const result = await approveAuthorisation({
+      authorisationId,
+      sendConfirmationEmail,
+    });
     setPending(null);
 
     if (!result.ok) {
       toast.error(result.error ?? "Couldn't approve.");
       return;
     }
+    setApproveOpen(false);
     review?.setStatus("approved");
     toastClearedToFly(pilotName);
     router.refresh();
@@ -211,7 +217,7 @@ export function DecisionBar({
             <>
               <button
                 type="button"
-                onClick={approve}
+                onClick={() => setApproveOpen(true)}
                 disabled={pending !== null}
                 className={cn(
                   "inline-flex h-10 min-w-[8.5rem] flex-1 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold shadow-sm transition-opacity outline-none sm:flex-none lg:h-11 lg:w-full",
@@ -243,6 +249,15 @@ export function DecisionBar({
         </div>
       </div>
       )}
+
+      <ApproveConfirmationDialog
+        open={approveOpen}
+        onOpenChange={setApproveOpen}
+        pending={pending === "approve"}
+        onConfirm={(sendConfirmationEmail) =>
+          void approve(sendConfirmationEmail)
+        }
+      />
 
       <Dialog open={declineOpen} onOpenChange={setDeclineOpen}>
         <DialogContent>
