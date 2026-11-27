@@ -271,4 +271,11 @@ alter function public.enforce_authorisation_immutability() set search_path = pub
 alter function public.lock_on_submission() set search_path = public;
 
 -- Not part of the app API. Keep it off the Data API.
-revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+-- Hosted projects create this helper; a fresh local database does not.
+do $$
+begin
+  if to_regprocedure('public.rls_auto_enable()') is not null then
+    revoke all on function public.rls_auto_enable() from public, anon, authenticated;
+  end if;
+end
+$$;
